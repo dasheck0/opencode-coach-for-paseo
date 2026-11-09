@@ -111,3 +111,18 @@ it('shares in-flight session reads across overlapping overview ranges', async ()
     expect(f.adapter.load).toHaveBeenCalledTimes(3);
   } finally { f.service.dispose(); }
 });
+it('builds workspace, model, heatmap and context views from all sessions without double-counting models', () => {
+  const acc = new OverviewAccumulator({ adapterId: 'fixture', sourceId: 'db', from: 0, to: 100 });
+  const summaries = [summary(10), summary(20)]; acc.discover(summaries); acc.start(summaries);
+  const report = analyze(session(summaries[0])); report.metrics.models = ['fixture-model', 'fixture-model'];
+  report.metrics.compactions = 4; report.metrics.humanPrompts = 31; report.metrics.toolCalls = 6;
+  acc.add(report);
+  const result = acc.snapshot();
+  expect(result.breakdown.workspaces).toEqual([{ directory: '/fixture', sessions: 2, humanPrompts: 31, toolCalls: 6 }]);
+  expect(result.breakdown.models).toEqual([{ name: 'fixture-model', sessions: 1 }]);
+  expect(result.breakdown.hours.reduce((a, b) => a + b, 0)).toBe(2);
+  expect(result.breakdown.calendar).toEqual([{ day: '1970-01-01', sessions: 2 }]);
+  expect(result.breakdown).toMatchObject({ compactions: 4, compactedSessions: 1, longSessions: 1 });
+  result.breakdown.hours[0] = 999;
+  expect(acc.snapshot().breakdown.hours[0]).not.toBe(999);
+});

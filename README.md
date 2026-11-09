@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.2.0
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.3.0
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -31,7 +31,25 @@ The daemon needs `node:sqlite` (Node 22.13+), or a `sqlite3` executable (3.25+) 
 - Provider activation, deactivation, visibility, and selection with persisted host settings. Disabled providers cannot be read through RPC.
 - A provider-independent registry, normalized model, analysis engine, and native React Native UI.
 
-This is an initial independent implementation inspired by [Microsoft AI Engineering Coach](https://github.com/microsoft/AI-Engineering-Coach), not feature parity with its full dashboard or rule library. See [NOTICE](NOTICE) for the reviewed upstream revision and attribution. No Microsoft implementation code is included; its MIT license is preserved in [licenses/](licenses/microsoft-ai-engineering-coach-MIT.txt).
+This is an initial independent implementation inspired by [Microsoft AI Engineering Coach](https://github.com/microsoft/AI-Engineering-Coach), not feature parity with its full dashboard or rule library. See [NOTICE](NOTICE) for the reviewed upstream revision and attribution. The native navigation grouping is adapted from its dashboard shell with attribution; its MIT license is preserved in [licenses/](licenses/microsoft-ai-engineering-coach-MIT.txt).
+
+## Interface structure
+
+The native UI follows the reference coach's **Observe / Measure / Improve** navigation, shared workspace/provider filters, page headers, metric cards, practice-area cards, charts, and drill-down hierarchy.
+
+| Area | Page | Current data and behavior |
+| --- | --- | --- |
+| Observe | Dashboard | Four KPI cards, four practice areas, ranked next steps, daily activity bars, top workspaces |
+| Observe | Timeline | Paginated session start/span bars grouped by UTC date, with selected-session evidence above the list |
+| Measure | Output | Historical input/output/cache tokens, recorded costs, models by session, successful edit operations |
+| Measure | Patterns | Work Hours heatmap (7×24 UTC), Calendar activity, Projects breakdown |
+| Improve | Anti-Patterns | Ranked rule findings, frequency, earlier/later rates, recommendations and evidence links |
+| Improve | Context Health | Recorded compaction and long-session signals with context-maintenance guidance |
+| Settings | Providers | Activation, visibility, selection and explicit data paths |
+
+Navigation preserves the same date/source/workspace filters and active analysis. Compact clients use a horizontal grouped menu. All pages use native React Native components and Paseo theme colors.
+
+This is a structural adaptation, not full feature parity. The reference's Coding Moments screenshot gallery, Curiosity analysis, Skill Finder, Level Up/learning flows, instruction-file audits, AI readiness scores and code-line accounting are not implemented. They are omitted rather than shown as working features. Context Health is explicitly limited to session evidence. Edit-call totals are not labeled generated code lines. No model-backed feature or outbound model request is enabled.
 
 ## Overview first
 

@@ -84,6 +84,7 @@ it('shows actionable cross-session insights immediately without opening any sess
   expect(JSON.stringify(r.toJSON())).toContain('Run relevant checks after the final edit.');
   expect(JSON.stringify(r.toJSON())).toContain('39.8');
   expect(mocks.history).not.toHaveBeenCalled(); expect(mocks.analyze).not.toHaveBeenCalled();
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'View All Anti-Patterns' }).props.onPress());
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Open evidence: Fixture session' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's' });
@@ -96,4 +97,24 @@ it('waits for a workspace filter to be applied instead of launching a job on eac
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Apply workspace filter' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(mocks.overview.mock.calls.at(-1)?.[0]).toMatchObject({ directory: '/fixture' });
+});
+it.each([[false, false], [true, true]])('keeps shared filters and analysis while navigating native coach pages (%s,%s)', async (compact, dark) => {
+  setup(); const r = await render(Dashboard, props(compact, dark));
+  const overviewCalls = mocks.overview.mock.calls.length;
+  for (const [page, content] of [['Output', 'Model Usage'], ['Patterns', 'Sessions by Day and Hour'], ['Context Health', 'Session Context Signals'], ['Anti-Patterns', 'Ranked by affected sessions.']] as const) {
+    await act(async () => r.root.findByProps({ accessibilityLabel: `Navigate to ${page}` }).props.onPress());
+    expect(JSON.stringify(r.toJSON())).toContain(content);
+    expect(r.root.findAllByProps({ accessibilityLabel: 'Filter by exact workspace directory' })).toHaveLength(1);
+    for (const node of r.root.findAllByType('Text' as never)) expect(node.props.style.color).toBeTruthy();
+  }
+  expect(mocks.overview).toHaveBeenCalledTimes(overviewCalls);
+  expect(mocks.analyze).not.toHaveBeenCalled();
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Patterns' }).props.onPress());
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Calendar' }).props.onPress());
+  expect(JSON.stringify(r.toJSON())).toContain('Calendar Activity');
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Projects' }).props.onPress());
+  expect(JSON.stringify(r.toJSON())).toContain('All matched directories');
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Providers' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  expect(r.root.findAllByType('SettingsSwitch' as never)).toHaveLength(2);
 });

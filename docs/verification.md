@@ -30,3 +30,12 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - GitHub CI passed on Node 22 and Node 24: https://github.com/dasheck0/opencode-coach-for-paseo/actions/runs/42605679748
 - Added support for common `npm run check` / `pnpm check` verification commands; a recognized command still does not prove passing results.
 - Native compact/dark rendering remains covered by component tests; physical-device verification is still outstanding.
+
+
+## Version 0.3: reference-aligned native interface
+
+- Compared the pinned Microsoft revision's dashboard-shell.ts, page-dashboard.ts, page-patterns.ts, and relevant styles. Adapted Observe / Measure / Improve grouping, dashboard hierarchy, and Patterns tabs to native components; recorded source attribution in NOTICE and the navigation module.
+- Strict typecheck and 38 tests pass. New tests traverse Output, Patterns, Anti-Patterns, Context Health and Providers on desktop/light and compact/dark props, preserve shared filters, verify themed text, and prove that navigation does not restart overview analysis.
+- Aggregate tests verify distinct-model session counts, all-session workspace totals, heatmap/calendar counts and context metrics. No outbound model service is used.
+- The actual Paseo app displayed the grouped native navigation, shared filters, dashboard KPI/practice cards, live overview and activity chart. Visual inspection identified narrow card wrapping and the final layout adds minimum widths with responsive wrapping.
+- UI compatibility remains Paseo 0.15.3. Physical iOS/Android verification and full Microsoft feature parity remain outside this verified scope.

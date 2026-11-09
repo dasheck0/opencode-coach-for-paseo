@@ -4,14 +4,19 @@ Copyright (c) 2026 dasheck0. Licensed under MIT.
 This independent implementation was informed by Microsoft's AI Engineering Coach:
 https://github.com/microsoft/AI-Engineering-Coach
 Reference revision: c5cfba17e732f100b4322f5c9c2116063d7e4ac4
-Reviewed source: src/core/parser-opencode.ts and the project README.
+Reviewed source: src/core/parser-opencode.ts, src/webview/dashboard-shell.ts,
+src/webview/page-dashboard.ts, src/webview/page-patterns.ts, and the project README.
 
-The local session analysis concept and older OpenCode SQLite layout were studied
-there. No Microsoft implementation, rule files, UI, assets, or runtime dependency
-are incorporated. The V2 reader, normalized model, coaching rules, service and
-Paseo UI in this repository are newly written. The reference project's MIT
-license is preserved in licenses/microsoft-ai-engineering-coach-MIT.txt as an
-attribution record. This project is not affiliated with Microsoft or Paseo.
+The navigation grouping and page information architecture in client/navigation.tsx
+are adapted from src/webview/dashboard-shell.ts at the reference revision above.
+The original Microsoft copyright is preserved in that module and the full MIT
+license is included in licenses/microsoft-ai-engineering-coach-MIT.txt.
+Dashboard card hierarchy and Patterns page tabs follow the reviewed UI structure;
+they are implemented with native Paseo/React Native components.
+
+The V2 reader, normalized model, coaching rules, service, and remaining native UI
+are newly written. No Microsoft runtime dependency, rule files, stylesheets,
+assets, or browser UI renderer is incorporated. This project is not affiliated with Microsoft or Paseo.
 
 If future contributions adapt Microsoft code, preserve the original copyright
 header and identify the exact source file and revision here, together with its

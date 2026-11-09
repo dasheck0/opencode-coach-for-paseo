@@ -8,6 +8,8 @@ const day = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 10
 export class OverviewAccumulator {
   private readonly insights = new Map<string, Insight & { earlier: number; later: number }>();
   private readonly days = new Map<string, Overview['activity'][number]>();
+  private readonly workspaces = new Map<string, { directory: string; sessions: number; humanPrompts: number; toolCalls: number }>();
+  private readonly models = new Map<string, number>();
   readonly result: Overview;
   constructor(input: OverviewInput, private readonly now: () => number = Date.now) {
     this.result = { status: 'discovering', generatedAt: now(), from: input.from ?? null, to: input.to, error: null,
@@ -15,11 +17,16 @@ export class OverviewAccumulator {
       metrics: { humanPrompts: 0, assistantCalls: 0, toolCalls: 0, toolErrors: 0, edits: 0,
         editingSessions: 0, verifiedEditingSessions: 0, inputTokens: null, outputTokens: null, cacheRead: null,
         cost: null, usageSessions: 0, costSessions: 0 },
+      breakdown: { workspaces: [], models: [], hours: Array(168).fill(0), calendar: [], compactions: 0, compactedSessions: 0, longSessions: 0 },
       periods: { midpoint: null, earlierSessions: 0, laterSessions: 0 }, insights: [], activity: [] };
   }
   discover(sessions: SessionSummary[]) {
     for (const session of sessions) {
       this.result.matched++;
+      const date = new Date(session.created);
+      this.result.breakdown.hours[date.getUTCDay() * 24 + date.getUTCHours()]++;
+      const workspace = this.workspaces.get(session.directory) ?? { directory: session.directory, sessions: 0, humanPrompts: 0, toolCalls: 0 };
+      workspace.sessions++; this.workspaces.set(session.directory, workspace);
       if (session.parentId) this.result.delegatedSessions++; else this.result.mainSessions++;
       const key = day(session.created);
       const bucket = this.days.get(key) ?? { day: key, sessions: 0, analyzed: 0, warningSessions: 0 };
@@ -36,6 +43,12 @@ export class OverviewAccumulator {
     const r = this.result, m = r.metrics, source = report.metrics;
     const earlier = report.session.created < (r.periods.midpoint ?? 0);
     r.analyzed++;
+    const workspace = this.workspaces.get(report.session.directory);
+    if (workspace) { workspace.humanPrompts += source.humanPrompts; workspace.toolCalls += source.toolCalls; }
+    for (const model of new Set(source.models)) this.models.set(model, (this.models.get(model) ?? 0) + 1);
+    r.breakdown.compactions += source.compactions;
+    if (source.compactions) r.breakdown.compactedSessions++;
+    if (source.humanPrompts > 30) r.breakdown.longSessions++;
     if (report.warnings.length) r.incomplete++;
     if (earlier) r.periods.earlierSessions++; else r.periods.laterSessions++;
     for (const key of ['humanPrompts', 'assistantCalls', 'toolCalls', 'toolErrors', 'edits'] as const) m[key] += source[key];
@@ -71,6 +84,6 @@ export class OverviewAccumulator {
       const key = day(end - (13 - i) * 86400000);
       return { ...(this.days.get(key) ?? { day: key, sessions: 0, analyzed: 0, warningSessions: 0 }) };
     }).filter(d => r.from === null || Date.parse(d.day) + 86400000 > r.from);
-    return { ...r, generatedAt: this.now(), metrics: { ...r.metrics }, periods: { ...r.periods }, insights, activity };
+    return { ...r, breakdown: { ...r.breakdown, hours: [...r.breakdown.hours], workspaces: [...this.workspaces.values()].map(w => ({ ...w })).sort((a, b) => b.sessions - a.sessions), models: [...this.models].map(([name, sessions]) => ({ name, sessions })).sort((a, b) => b.sessions - a.sessions), calendar: [...this.days.values()].sort((a, b) => a.day.localeCompare(b.day)).map(({ day, sessions }) => ({ day, sessions })) }, generatedAt: this.now(), metrics: { ...r.metrics }, periods: { ...r.periods }, insights, activity };
   }
 }
