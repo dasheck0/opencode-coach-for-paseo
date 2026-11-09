@@ -39,3 +39,7 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - Aggregate tests verify distinct-model session counts, all-session workspace totals, heatmap/calendar counts and context metrics. No outbound model service is used.
 - The actual Paseo app displayed the grouped native navigation, shared filters, dashboard KPI/practice cards, live overview and activity chart. Visual inspection identified narrow card wrapping and the final layout adds minimum widths with responsive wrapping.
 - UI compatibility remains Paseo 0.15.3. Physical iOS/Android verification and full Microsoft feature parity remain outside this verified scope.
+
+- Final v0.3 live RPC check: 66 sessions analyzed completely, zero read failures and zero incomplete reports in the selected seven-day sample; four workspace groups, two model groups, three active calendar dates. Heatmap and workspace session totals each equal the matched-session total.
+- Final native UI walkthrough opened Dashboard, Output, Patterns, Context Health and Timeline with real host data, then returned to Dashboard. Provider changes were not made.
+- CI passed on Node 22 and Node 24: https://github.com/dasheck0/opencode-coach-for-paseo/actions/runs/42609560055
