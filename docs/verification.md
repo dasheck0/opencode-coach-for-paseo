@@ -11,6 +11,8 @@ Initial implementation checked on 2026-11-09 with Paseo daemon/app 0.15.3 on mac
 - Installed the plugin into an already plugin-enabled local daemon. `paseo plugin ls opencode-coach-for-paseo --json` returned `enabled: true`, `status: running`.
 - The real Paseo desktop app displayed the registered project/workspace, Coach sidebar contribution, detected V2 source, and a 50-session history page fetched through the plugin RPC.
 - Read and analyzed an existing local V2 session through the same adapter and engine: 14 assistant calls, 17 tool calls, 2 successful edit calls, 1 recognized verification command, and no import warning. Counts are a point-in-time sample, not a benchmark or correctness claim.
+- Exercised installed catalog, history, and analysis RPCs through an authenticated local Paseo SDK connection, including a missing-session error. All three succeeded and the expected error was returned.
+- Regenerated the dependency lock from an empty directory after the initial CI install exposed an inconsistent transitive resolution; a clean `npm ci --ignore-scripts` then succeeded.
 - No HTML/DOM usage in client modules. React Native primitives and theme colors are used throughout.
 
 Not yet verified on a physical iOS/Android device, on Windows/Linux hosts, or by visually switching the live app theme. Compact/dark coverage is component-level. Provider setting mutations are exercised in component/service tests; live settings conflict/reconnect behavior relies on the Paseo SDK contract. Claude Code parsing is not implemented.

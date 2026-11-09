@@ -7,7 +7,7 @@ A native Paseo plugin for understanding historical OpenCode sessions. Browse ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install github:dasheck0/opencode-coach-for-paseo --ref v0.1.0
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.1.0
 paseo plugin ls opencode-coach-for-paseo
 ```
 
