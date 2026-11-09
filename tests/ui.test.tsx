@@ -1,17 +1,19 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import type { ViewPreferences } from '../shared/preferences';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const mocks = vi.hoisted(() => ({
   save: vi.fn(async () => true), values: { disabled: [] as string[], hidden: [] as string[], selected: 'opencode-v2', paths: {} },
-  catalog: vi.fn(), history: vi.fn(), analyze: vi.fn(), overview: vi.fn(),
+  catalog: vi.fn(), history: vi.fn(), analyze: vi.fn(), overview: vi.fn(), workspaces: vi.fn(), saveView: vi.fn(async (_values: unknown, _revision: string) => true),
+  view: { language: 'en', days: 30, workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } } as ViewPreferences,
 }));
 vi.mock('react-native', () => ({ View: 'View', Text: 'Text', Pressable: 'Pressable', ScrollView: 'ScrollView', TextInput: 'TextInput' }));
 vi.mock('@getpaseo/plugin/client', () => ({
-  useRpc: (contract: { name: string }) => contract.name === 'coach.catalog' ? mocks.catalog : contract.name === 'coach.history' ? mocks.history : contract.name === 'coach.overview' ? mocks.overview : mocks.analyze,
-  useSettings: () => ({ status: 'ready', values: mocks.values, revision: 'r1', saving: false, saveError: null, save: mocks.save, reload: vi.fn(), reset: vi.fn() }),
+  useRpc: (contract: { name: string }) => contract.name === 'coach.catalog' ? mocks.catalog : contract.name === 'coach.history' ? mocks.history : contract.name === 'coach.overview' ? mocks.overview : contract.name === 'coach.workspaces' ? mocks.workspaces : mocks.analyze,
+  useSettings: (definition: { id: string }) => ({ status: 'ready', values: definition.id === 'view' ? mocks.view : mocks.values, revision: 'r1', saving: false, saveError: null, save: definition.id === 'view' ? mocks.saveView : mocks.save, reload: vi.fn(), reset: vi.fn() }),
 }));
-vi.mock('@getpaseo/plugin/client/ui', () => Object.fromEntries(['SettingsAction','SettingsCard','SettingsInput','SettingsSection','SettingsSwitch'].map(n => [n, n])));
+vi.mock('@getpaseo/plugin/client/ui', () => Object.fromEntries(['SettingsAction','SettingsCard','SettingsInput','SettingsSection','SettingsSwitch','SettingsSelect'].map(n => [n, n])));
 import { OverviewAccumulator } from '../server/overview';
 import { Dashboard } from '../client/dashboard';
 import { CoachSettings } from '../client/settings';
@@ -33,6 +35,9 @@ async function render(Component: typeof Dashboard | typeof CoachSettings, p: Plu
   return r;
 }
 function setup(error = false) {
+  mocks.saveView.mockImplementation(async () => true);
+  mocks.view = { language: 'en', days: 30, workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } };
+  mocks.workspaces.mockResolvedValue({ workspaces: [{ id: 'w1', name: 'Human workspace', projectName: 'Fixture Project', projectId: 'p1', directory: '/fixture', projectRoot: '/fixture', worktree: false }, { id: 'w2', name: 'Worktree', projectName: 'Fixture Project', projectId: 'p1', directory: '/worktree', projectRoot: '/fixture', worktree: true }] });
   mocks.catalog.mockResolvedValue({ adapters: [{ id: 'opencode-v2', title: 'OpenCode V2', description: 'Fixture adapter', enabled: true, hidden: false,
     sources: error ? [] : [{ id: 'db', path: '/fixture.db', label: 'Fixture', format: 'v2' }], error: error ? 'Fixture source unavailable' : null }] });
   const acc = new OverviewAccumulator({ adapterId: 'opencode-v2', sourceId: 'db', to: Date.now() });
@@ -54,7 +59,7 @@ it.each([[false, false], [true, true]])('renders desktop/light and compact/dark 
   const analyzeButton = r.root.findByProps({ accessibilityLabel: 'Analyze Fixture session' });
   await act(async () => analyzeButton.props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
-  expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's' });
+  expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's', origin: 'all' });
   expect(JSON.stringify(r.toJSON())).toContain('Fixture analysis failed');
 });
 it('shows discovery errors with a recovery action', async () => {
@@ -87,29 +92,30 @@ it('shows actionable cross-session insights immediately without opening any sess
   await act(async () => r.root.findByProps({ accessibilityLabel: 'View All Anti-Patterns' }).props.onPress());
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Open evidence: Fixture session' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
-  expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's' });
+  expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's', origin: 'all' });
 });
-it('waits for a workspace filter to be applied instead of launching a job on each keystroke', async () => {
+it('selects multiple named Paseo workspaces using a dropdown without accepting arbitrary paths', async () => {
   setup(); const r = await render(Dashboard, props(false, false));
-  const count = mocks.overview.mock.calls.length;
-  await act(async () => r.root.findByProps({ accessibilityLabel: 'Filter by exact workspace directory' }).props.onChangeText('/fixture'));
-  expect(mocks.overview).toHaveBeenCalledTimes(count);
-  await act(async () => r.root.findByProps({ accessibilityLabel: 'Apply workspace filter' }).props.onPress());
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
-  expect(mocks.overview.mock.calls.at(-1)?.[0]).toMatchObject({ directory: '/fixture' });
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Choose workspaces' }).props.onPress());
+  const options = r.root.findAllByProps({ accessibilityRole: 'checkbox' }); expect(options).toHaveLength(2);
+  await act(async () => options[0].props.onPress());
+  expect(mocks.saveView).toHaveBeenLastCalledWith({ ...mocks.view, workspaceIds: ['w1'] }, 'r1');
+  expect(r.root.findAllByProps({ accessibilityLabel: 'Filter by exact workspace directory' })).toHaveLength(0);
 });
 it.each([[false, false], [true, true]])('keeps shared filters and analysis while navigating native coach pages (%s,%s)', async (compact, dark) => {
   setup(); const r = await render(Dashboard, props(compact, dark));
   const overviewCalls = mocks.overview.mock.calls.length;
   for (const [page, content] of [['Output', 'Model Usage'], ['Patterns', 'Sessions by Day and Hour'], ['Context Health', 'Session Context Signals'], ['Anti-Patterns', 'Ranked by affected sessions.']] as const) {
     await act(async () => r.root.findByProps({ accessibilityLabel: `Navigate to ${page}` }).props.onPress());
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
     expect(JSON.stringify(r.toJSON())).toContain(content);
-    expect(r.root.findAllByProps({ accessibilityLabel: 'Filter by exact workspace directory' })).toHaveLength(1);
+    expect(r.root.findAllByProps({ accessibilityLabel: 'Choose workspaces' })).toHaveLength(1);
     for (const node of r.root.findAllByType('Text' as never)) expect(node.props.style.color).toBeTruthy();
   }
-  expect(mocks.overview).toHaveBeenCalledTimes(overviewCalls);
+  expect(mocks.overview.mock.calls.length).toBeLessThanOrEqual(overviewCalls + 2);
   expect(mocks.analyze).not.toHaveBeenCalled();
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Patterns' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Calendar' }).props.onPress());
   expect(JSON.stringify(r.toJSON())).toContain('Calendar Activity');
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Projects' }).props.onPress());
@@ -117,4 +123,20 @@ it.each([[false, false], [true, true]])('keeps shared filters and analysis while
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Providers' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(r.root.findAllByType('SettingsSwitch' as never)).toHaveLength(2);
+});
+it('saves and restores language, period and the per-page origin preference', async () => {
+  setup(); let r = await render(Dashboard, props(false, false));
+  mocks.saveView.mockImplementation(async values => { mocks.view = values as ViewPreferences; return true; });
+  await act(async () => r.root.findByProps({ accessibilityLabel: '7 days' }).props.onPress());
+  expect(mocks.view.days).toBe(7);
+  await act(async () => r.root.findByProps({ label: 'Language' }).props.onValueChange('de'));
+  r = await render(Dashboard, props(false, false));
+  expect(r.root.findByProps({ accessibilityLabel: '7 Tage' }).props.accessibilityState.selected).toBe(true);
+  expect(JSON.stringify(r.toJSON())).toContain('Deine Coaching-Übersicht');
+  expect(JSON.stringify(r.toJSON())).toContain('MENSCHLICHE PROMPTS');
+  const origin = r.root.findByProps({ label: 'Herkunft der Sessions' });
+  expect(origin.props.value).toBe('human');
+  await act(async () => origin.props.onValueChange('all'));
+  expect(mocks.view.origins.dashboard).toBe('all');
+  expect(mocks.view.origins['anti-patterns']).toBe('human');
 });

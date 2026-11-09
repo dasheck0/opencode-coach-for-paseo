@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const sourceSchema = z.object({ id: z.string(), label: z.string(), path: z.string(), format: z.string() });
 export const summarySchema = z.object({
   id: z.string(), adapterId: z.string(), sourceId: z.string(), title: z.string(), directory: z.string(),
+  workspaceId: z.string().optional(), workspaceName: z.string().optional(), projectName: z.string().optional(),
   parentId: z.string().nullable(), created: z.number(), updated: z.number(),
   inputTokens: z.number().nullable(), outputTokens: z.number().nullable(), cost: z.number().nullable(),
 });
@@ -21,7 +22,7 @@ export const findingSchema = z.object({
 });
 export const reportSchema = z.object({
   session: summarySchema, findings: z.array(findingSchema), warnings: z.array(z.string()),
-  metrics: z.object({ humanPrompts: z.number(), assistantCalls: z.number(), toolCalls: z.number(), toolErrors: z.number(),
+  metrics: z.object({ humanPrompts: z.number(), aiPrompts: z.number().default(0), assistantCalls: z.number(), toolCalls: z.number(), toolErrors: z.number(),
     edits: z.number(), verificationCommands: z.number(), compactions: z.number(),
     inputTokens: z.number().nullable(), outputTokens: z.number().nullable(), cacheRead: z.number().nullable(),
     cacheWrite: z.number().nullable(), cost: z.number().nullable(), models: z.array(z.string()),
@@ -30,4 +31,4 @@ export const reportSchema = z.object({
 });
 export type Report = z.infer<typeof reportSchema>;
 export type Finding = z.infer<typeof findingSchema>;
-export interface HistoryQuery { from?: number; to?: number; directory?: string; limit: number; offset: number }
+export interface HistoryQuery { from?: number; to?: number; directory?: string; limit: number; offset: number; workspaceIds?: string[]; origin?: 'human' | 'ai' | 'all' }

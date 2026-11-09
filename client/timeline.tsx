@@ -1,10 +1,12 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './i18n';
 import type { Report, SessionSummary } from '../shared/model';
 import { Action, Panel, type Surface } from './ui';
 export function SessionDetail({ report, theme, layout }: Surface & { report: Report }) {
   const c = theme.colors, m = report.metrics;
-  return <Panel theme={theme} layout={layout} title={report.session.title}>
-    <Text style={{ color: c.foreground }}>{m.humanPrompts} human prompts · {m.assistantCalls} model calls · {m.toolCalls} tool calls</Text>
+  return <Panel theme={theme} layout={layout} title={report.session.title} verbatimTitle>
+    <Text verbatim style={{ color: c.foregroundMuted, fontSize: 12 }}>{report.session.projectName} · {report.session.workspaceName}</Text>
+    <Text style={{ color: c.foreground }}>{m.humanPrompts} human prompts · {m.aiPrompts} AI prompts · {m.assistantCalls} model calls · {m.toolCalls} tool calls</Text>
     <Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{m.edits} edits · {m.toolErrors} tool errors · {m.verificationCommands} verification commands · {Math.round(m.durationMinutes)} min elapsed span</Text>
     <Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Input {m.inputTokens?.toLocaleString() ?? 'unknown'} · Output {m.outputTokens?.toLocaleString() ?? 'unknown'} · Models: {m.models.join(', ') || 'not recorded'}</Text>
     {report.warnings.map(w => <Text key={w} style={{ color: c.statusWarning }}>{w}</Text>)}
@@ -29,7 +31,7 @@ export function TimelinePage(props: Surface & { sessions: SessionSummary[]; sess
         return <View key={s.id} style={{ gap: 8 }}>{day !== previousDay && <Text style={{ color: c.foregroundMuted, fontWeight: '600', marginTop: 12 }}>{day} · 00:00 — 12:00 — 24:00 UTC</Text>}
           <Action {...props} label={`Analyze ${s.title}`} selected={s.id === props.sessionId} onPress={() => onSelect(s.id)} />
           <View style={{ height: 7, backgroundColor: c.surface2, borderRadius: 3 }}><View style={{ marginLeft: `${start}%`, width: `${width}%`, height: 7, backgroundColor: c.accent, borderRadius: 3 }} /></View>
-          <Text numberOfLines={1} style={{ color: c.foregroundMuted, fontSize: 11 }}>{date.toISOString().slice(11, 16)} UTC · {s.parentId ? 'Delegated' : 'Main'} · {s.directory}</Text>
+          <Text numberOfLines={1} style={{ color: c.foregroundMuted, fontSize: 11 }}>{date.toISOString().slice(11, 16)} UTC · {s.parentId ? 'Delegated' : 'Main'} · {s.projectName ? s.projectName + ' · ' : ''}{s.workspaceName || s.directory}</Text>
         </View>;
       })}
       <View style={{ flexDirection: 'row', gap: 8 }}><Action {...props} label="Previous" disabled={props.offset === 0} onPress={() => props.onOffset(Math.max(0, props.offset - 50))} /><Action {...props} label="Next" disabled={!props.hasMore} onPress={() => props.onOffset(props.offset + 50)} /></View>

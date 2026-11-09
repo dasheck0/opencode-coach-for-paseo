@@ -1,7 +1,8 @@
+import { DiskReportCache, defaultCacheDirectory } from './cache';
 import { createRegistry } from './registry';
 import { CoachService, type Preferences } from './service';
 const service = new CoachService(createRegistry(), async (): Promise<Preferences> => ({ disabled: [], hidden: [], selected: 'opencode-v2',
-  paths: process.env.COACH_OPENCODE_DB ? { 'opencode-v2': [process.env.COACH_OPENCODE_DB] } : {} }));
+  paths: process.env.COACH_OPENCODE_DB ? { 'opencode-v2': [process.env.COACH_OPENCODE_DB] } : {} }), new DiskReportCache(defaultCacheDirectory()));
 const [command = 'sources', sourceId, sessionId] = process.argv.slice(2);
 try {
   if (command === 'sources') console.log(JSON.stringify(await service.catalog(), null, 2));

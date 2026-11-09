@@ -34,7 +34,7 @@ function message(row: Row, parts?: Row[]): Message {
       command: str(input.command).slice(0, 4000), file: str(input.filePath) || str(input.file_path) || str(input.path) };
   });
   const role = str(row.type) || str(data.role);
-  return { id: str(row.id), role: role === 'user' ? 'user' : role === 'assistant' ? 'assistant' : 'system',
+  return { id: str(row.id), role: role === 'user' || role === 'synthetic' ? 'user' : role === 'assistant' ? 'assistant' : 'system',
     synthetic: role !== 'user' && role !== 'assistant' || data.synthetic === true || content.some(p => p.synthetic === true),
     text: (str(data.text) || content.filter(p => p.type === 'text').map(p => str(p.text)).join('\n')).slice(0, 20000),
     timestamp: num(record(data.time).created) ?? num(row.time_created) ?? 0,
@@ -77,7 +77,7 @@ export class OpenCodeAdapter implements CoachAdapter {
         const format = names.has('session_v2') && names.has('session_message') ? 'v2'
           : names.has('session') && names.has('message') && names.has('part') ? 'legacy-sqlite' : '';
         if (!format) throw new Error(`Unsupported OpenCode schema in ${basename(path)}`);
-        sources.push({ id: createHash('sha256').update(path).digest('hex').slice(0, 24), label: basename(path), path, format });
+        sources.push({ id: createHash('sha256').update(path + ':' + (await stat(path)).ino + ':' + (await stat(path)).birthtimeMs).digest('hex').slice(0, 24), label: basename(path), path, format });
       } finally { db.close(); }
     }
     return sources;
@@ -92,6 +92,14 @@ export class OpenCodeAdapter implements CoachAdapter {
       const rows = await db.query(`SELECT * FROM ${table} ${conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''}
         ORDER BY time_created DESC, id DESC LIMIT ${literal(query.limit)} OFFSET ${literal(query.offset)}`);
       return rows.map(r => summary(r, source));
+    } finally { db.close(); }
+  }
+  async summary(source: Source, sessionId: string): Promise<SessionSummary> {
+    const db = await openDatabase(source.path, this.forceCli);
+    try {
+      const [row] = await db.query(`SELECT * FROM ${source.format === 'v2' ? 'session_v2' : 'session'} WHERE id=${literal(sessionId)}`);
+      if (!row) throw new Error('Session no longer exists');
+      return summary(row, source);
     } finally { db.close(); }
   }
   async load(source: Source, sessionId: string): Promise<Session> {

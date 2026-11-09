@@ -1,3 +1,4 @@
+import type { Origin } from '../shared/preferences';
 import type { Finding, Message, Report, Session } from '../shared/model';
 
 const EDIT = /^(write|edit|create|patch|apply_patch|multiedit)$/i;
@@ -9,9 +10,11 @@ const total = (messages: Message[], key: 'inputTokens' | 'outputTokens' | 'cache
   const values = messages.map(m => m[key]).filter((n): n is number => n !== null);
   return values.length ? values.reduce((a, b) => a + b, 0) : null;
 };
-export function analyze(session: Session): Report {
+export function analyze(session: Session, origin: Origin = 'human'): Report {
   const { messages } = session;
   const human = messages.filter(m => m.role === 'user' && !m.synthetic && !session.summary.parentId);
+  const ai = messages.filter(m => m.role === 'user' && (m.synthetic || !!session.summary.parentId));
+  const prompts = origin === 'human' ? human : origin === 'ai' ? ai : [...human, ...ai];
   const assistant = messages.filter(m => m.role === 'assistant');
   const tools = assistant.flatMap(m => m.tools.map(tool => ({ ...tool, messageId: m.id })));
   const edits = tools.filter(t => EDIT.test(t.name) && t.status === 'completed');
@@ -20,13 +23,13 @@ export function analyze(session: Session): Report {
   const findings: Finding[] = [];
   const add = (rule: string, title: string, evidence: string, advice: string, ids: string[], severity: 'info' | 'warning' = 'warning') =>
     findings.push({ rule, title, severity, evidence, advice, messageIds: [...new Set(ids)].slice(0, 20) });
-  const vague = human.filter(m => m.text.trim().length > 0 && m.text.trim().length < 25);
-  if (vague.length) add('short-prompts', 'Make brief prompts actionable', `${vague.length} human prompt(s) contain fewer than 25 characters. Short follow-ups can be appropriate.`,
+  const vague = prompts.filter(m => m.text.trim().length > 0 && m.text.trim().length < 25);
+  if (vague.length) add('short-prompts', 'Make brief prompts actionable', `${vague.length} selected prompt(s) contain fewer than 25 characters. Short follow-ups can be appropriate.`,
     'For a new task, include the goal, relevant files, constraints, and a way to verify the result.', vague.map(m => m.id));
-  const specific = human.filter(m => /\b(test|verify|acceptance|expected|must|constraint|prüf|erwart|akzeptanz)|\.[a-z]{1,5}\b|[/\\][\w.-]+/i.test(m.text));
-  if (human.length >= 3 && specific.length / human.length < 0.34) add('acceptance-criteria', 'State the expected result',
-    `${specific.length} of ${human.length} human prompts contain recognizable file, constraint, or verification cues. This is a language heuristic.`,
-    'Include a concrete before/after example and acceptance criteria in the next task brief.', human.map(m => m.id));
+  const specific = prompts.filter(m => /\b(test|verify|acceptance|expected|must|constraint|prüf|erwart|akzeptanz)|\.[a-z]{1,5}\b|[/\\][\w.-]+/i.test(m.text));
+  if (prompts.length >= 3 && specific.length / prompts.length < 0.34) add('acceptance-criteria', 'State the expected result',
+    `${specific.length} of ${prompts.length} selected prompts contain recognizable file, constraint, or verification cues. This is a language heuristic.`,
+    'Include a concrete before/after example and acceptance criteria in the next task brief.', prompts.map(m => m.id));
   if (edits.length && !checks.length) add('verification-gap', 'Verify after editing',
     `${edits.length} successful edit call(s), with no recognized verification command in the available log.`,
     'Ask for relevant tests and a reported result. Logs may omit verification performed elsewhere.', edits.map(t => t.messageId));
@@ -46,8 +49,8 @@ export function analyze(session: Session): Report {
   const loops = [...repeated.values()].filter(group => group.length >= 3).flat();
   if (loops.length) add('retry-loop', 'Change strategy before retrying', 'An identical tool command or file operation failed at least three times.',
     'Pause the loop, inspect the error, and try a different approach.', loops.map(t => t.messageId));
-  if (human.length > 30) add('session-hygiene', 'Consider a focused follow-up session', `${human.length} human prompts in one session.`,
-    'When the goal changes, summarize decisions, open questions, and test status before starting a focused session.', human.slice(-3).map(m => m.id));
+  if (prompts.length > 30) add('session-hygiene', 'Consider a focused follow-up session', `${prompts.length} selected prompts in one session.`,
+    'When the goal changes, summarize decisions, open questions, and test status before starting a focused session.', prompts.slice(-3).map(m => m.id));
   if (session.compactions >= 3) add('context-pressure', 'Preserve decisions across compaction', `${session.compactions} compaction events recorded.`,
     'Keep a concise project instruction file and checkpoint the current plan and verification results.', []);
   if (checks.length) add('verification-observed', 'Verification commands observed', `${checks.length} recognized verification command(s) were issued. A completed tool status alone does not prove tests passed.`,
@@ -57,12 +60,12 @@ export function analyze(session: Session): Report {
   if (!human.length && !assistant.length) add('no-evidence', 'No analyzable conversation', 'The available records contain no human prompts or assistant calls.',
     'Check the source database or choose another session.', [], 'info');
   return { session: session.summary, findings, warnings: session.warnings,
-    metrics: { humanPrompts: human.length, assistantCalls: assistant.length, toolCalls: tools.length,
+    metrics: { humanPrompts: human.length, aiPrompts: ai.length, assistantCalls: assistant.length, toolCalls: tools.length,
       toolErrors: errors.length, edits: edits.length, verificationCommands: checks.length, compactions: session.compactions,
       inputTokens: total(assistant, 'inputTokens'), outputTokens: total(assistant, 'outputTokens'),
       cacheRead: total(assistant, 'cacheRead'), cacheWrite: total(assistant, 'cacheWrite'), cost: total(assistant, 'cost'),
       models: [...new Set(assistant.flatMap(m => m.model ? [m.model] : []))],
       durationMinutes: Math.max(0, session.summary.updated - session.summary.created) / 60000,
-      promptSpecificity: human.length ? Math.round(specific.length / human.length * 100) : null,
+      promptSpecificity: prompts.length ? Math.round(specific.length / prompts.length * 100) : null,
     } };
 }

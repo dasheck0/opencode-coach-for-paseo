@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from './i18n';
 import type { Overview } from '../shared/overview';
 import type { CoachPage } from './navigation';
 import { Action, Panel, Stat, type Surface } from './ui';
@@ -37,7 +38,7 @@ export function OverviewPanel(props: OverviewProps) {
   return <View style={{ gap: 18 }}>
     <View style={{ paddingVertical: 8, gap: 6 }}><Text accessibilityRole="header" style={{ color: c.foreground, fontSize: 21, fontWeight: '600' }}>Your coaching overview</Text><Text style={{ color: c.foregroundMuted }}>All matching sessions · {data.mainSessions} main · {data.delegatedSessions} delegated</Text></View>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-      <Stat {...props} label="Human prompts" value={m.humanPrompts} hint="Delegated prompts excluded" /><Stat {...props} label="Sessions" value={data.matched} hint={`${data.analyzed} analyzed`} />
+      <Stat {...props} label={data.origin === 'ai' ? 'AI prompts' : 'Human prompts'} value={data.origin === 'ai' ? m.aiPrompts : m.humanPrompts} hint={data.origin === 'ai' ? 'Delegated prompts only' : 'Delegated prompts excluded'} /><Stat {...props} label="Sessions" value={data.matched} hint={`${data.analyzed} analyzed`} />
       <Stat {...props} label="Edit operations" value={m.edits} hint="Successful logged edit calls" /><Stat {...props} label="Workspaces" value={data.breakdown.workspaces.length} hint="Distinct session directories" />
     </View>
     <View style={{ gap: 10 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text accessibilityRole="header" style={{ color: c.foreground, fontSize: 16, fontWeight: '600' }}>Anti-Patterns Summary</Text><Action {...props} label="View All Anti-Patterns" onPress={() => onNavigate?.('anti-patterns')} /></View>
@@ -56,7 +57,7 @@ export function OverviewPanel(props: OverviewProps) {
     </Panel>
     <ActivityChart {...props} />
     <Panel {...props} title="Top Workspaces by Sessions" action="Explore Patterns" onAction={() => onNavigate?.('patterns')}>
-      {data.breakdown.workspaces.slice(0, 5).map(w => <View key={w.directory} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}><Text numberOfLines={1} style={{ color: c.foreground, flex: 1, fontSize: 12 }}>{w.directory.split(/[/\\]/).filter(Boolean).pop() || 'Unknown'}</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{w.sessions} sessions · {w.humanPrompts} human prompts</Text></View>)}
+      {data.breakdown.workspaces.slice(0, 5).map(w => <View key={w.directory} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}><Text verbatim numberOfLines={1} style={{ color: c.foreground, flex: 1, fontSize: 12 }}>{`${w.projectName ? w.projectName + ' · ' : ''}${w.workspaceName || w.directory.split(/[/\\]/).filter(Boolean).pop() || 'Unknown'}`}</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{w.sessions} sessions · {w.humanPrompts} human prompts</Text></View>)}
     </Panel>
     <Text style={{ color: c.foregroundMuted, fontSize: 11 }}>Practice cards show observable rule findings. No synthetic quality score is assigned. Percentages use all analyzed sessions, including delegated work.</Text>
   </View>;
@@ -69,7 +70,7 @@ export function AntiPatternsPage(props: OverviewProps) {
     {data.insights.map(i => <Panel key={i.rule} {...props} title={i.title}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}><Text style={{ color: c.statusWarning, fontWeight: '600' }}>{i.affectedSessions} sessions · {i.percentage}%</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{i.changePoints === null ? 'Trend: insufficient evidence' : `${i.earlierPercentage}% → ${i.laterPercentage}% (${i.changePoints > 0 ? '+' : ''}${i.changePoints} pp)`}</Text></View>
       <Text style={{ color: c.foreground }}>{i.advice}</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{i.examples.map(e => <Pressable key={e.sessionId} accessibilityRole="button" accessibilityLabel={`Open evidence: ${e.title}`} onPress={() => onOpenSession(e.sessionId)} style={{ padding: 9, backgroundColor: c.surface2, borderRadius: 6 }}><Text style={{ color: c.accent, fontSize: 12 }}>{e.title} →</Text></Pressable>)}</View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{i.examples.map(e => <Pressable key={e.sessionId} accessibilityRole="button" accessibilityLabel={`Open evidence: ${e.title}`} onPress={() => onOpenSession(e.sessionId)} style={{ padding: 9, backgroundColor: c.surface2, borderRadius: 6 }}><Text verbatim style={{ color: c.accent, fontSize: 12 }}>{e.title}{e.projectName ? ` · ${e.projectName}` : ''}{e.workspaceName ? ` · ${e.workspaceName}` : ''} →</Text></Pressable>)}</View>
     </Panel>)}
     {!data.insights.length && <Text style={{ color: c.foregroundMuted }}>No warning patterns in the available evidence yet.</Text>}
   </View>;
@@ -80,7 +81,7 @@ export function OutputPage(props: OverviewProps) {
     <Stat {...props} label="Input tokens" value={m.inputTokens ?? 'Unknown'} /><Stat {...props} label="Output tokens" value={m.outputTokens ?? 'Unknown'} /><Stat {...props} label="Cache read tokens" value={m.cacheRead ?? 'Unknown'} /><Stat {...props} label="Recorded cost" value={m.cost === null ? 'Unknown' : `$${m.cost.toFixed(2)}`} />
   </View><Panel {...props} title="Model Usage">
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: c.foregroundMuted }}>MODEL</Text><Text style={{ color: c.foregroundMuted }}>SESSIONS</Text></View>
-    {data.breakdown.models.map(model => <View key={model.name} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderColor: c.border }}><Text style={{ color: c.foreground }}>{model.name}</Text><Text style={{ color: c.foreground }}>{model.sessions}</Text></View>)}
+    {data.breakdown.models.map(model => <View key={model.name} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderColor: c.border }}><Text verbatim style={{ color: c.foreground }}>{model.name}</Text><Text style={{ color: c.foreground }}>{model.sessions}</Text></View>)}
     {!data.breakdown.models.length && <Text style={{ color: c.foregroundMuted }}>No model identifiers recorded in analyzed sessions.</Text>}
   </Panel><Panel {...props} title="Edit Activity"><Text style={{ color: c.foreground }}>{m.edits} successful edit operations across {m.editingSessions} sessions.</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>These logs do not provide reliable generated-code line totals. Edit calls are not lines of code.</Text></Panel>
   <Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Usage recorded in {m.usageSessions}/{data.analyzed} sessions; cost recorded in {m.costSessions}/{data.analyzed}. These are historical session costs, not Coach charges. A session using multiple models appears in multiple model rows.</Text></View>;
@@ -94,7 +95,7 @@ export function PatternsPage(props: OverviewProps) {
       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((label, day) => <View key={label} style={{ flexDirection: 'row', gap: layout.compact ? 2 : 4, alignItems: 'center' }}><Text style={{ color: c.foregroundMuted, fontSize: 11, width: 30 }}>{label}</Text>{Array.from({ length: 24 }, (_, h) => <View key={h} accessibilityLabel={`${label} ${h}:00 UTC: ${data.breakdown.hours[day * 24 + h]} sessions`} style={{ flex: 1, height: layout.compact ? 13 : 20, borderRadius: 2, backgroundColor: c.accent, opacity: data.breakdown.hours[day * 24 + h] ? 0.2 + data.breakdown.hours[day * 24 + h] / peak * 0.8 : 0.06 }} />)}</View>)}
     </Panel>}
     {tab === 'Calendar' && <><ActivityChart {...props} /><Panel {...props} title="Calendar Activity"><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{data.breakdown.calendar.map(d => <View key={d.day} style={{ padding: 10, borderRadius: 6, backgroundColor: c.surface2 }}><Text style={{ color: c.foregroundMuted, fontSize: 11 }}>{d.day}</Text><Text style={{ color: c.foreground, fontWeight: '600' }}>{d.sessions} sessions</Text></View>)}</View></Panel></>}
-    {tab === 'Projects' && <Panel {...props} title="Projects"><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>All matched directories; prompt and tool totals cover analyzed sessions.</Text>{data.breakdown.workspaces.map(w => <View key={w.directory} style={{ paddingVertical: 10, borderTopWidth: 1, borderColor: c.border, gap: 5 }}><Text selectable style={{ color: c.foreground, fontSize: 12 }}>{w.directory || 'Unknown directory'}</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{w.sessions} sessions · {w.humanPrompts} human prompts · {w.toolCalls} tool calls</Text></View>)}</Panel>}
+    {tab === 'Projects' && <Panel {...props} title="Projects"><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>All matched directories; prompt and tool totals cover analyzed sessions.</Text>{data.breakdown.workspaces.map(w => <View key={w.directory} style={{ paddingVertical: 10, borderTopWidth: 1, borderColor: c.border, gap: 5 }}><Text verbatim selectable style={{ color: c.foreground, fontSize: 12 }}>{w.projectName ? w.projectName + ' · ' : ''}{w.workspaceName || w.directory || 'Unknown directory'}</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{w.sessions} sessions · {w.humanPrompts} human prompts · {w.toolCalls} tool calls</Text></View>)}</Panel>}
   </View>;
 }
 export function ContextPage(props: OverviewProps) {

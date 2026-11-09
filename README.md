@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.3.0
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.4.0
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -20,11 +20,11 @@ The daemon needs `node:sqlite` (Node 22.13+), or a `sqlite3` executable (3.25+) 
 - OpenCode V2: `session_v2` metadata and ordered `session_message` inline content.
 - Older OpenCode SQLite: `session`, `message`, and `part` tables.
 - Automatic source discovery, configurable paths, and source selection.
-- Historical date windows, exact directory filtering, and 50-session pagination.
+- Historical date windows, Paseo workspace multi-selection, and 50-session pagination.
 - An automatic overview across **every matching session in the selected source and period**, independent of the paginated session browser.
 - Ranked coaching priorities with affected-session counts and percentages, practical next steps, and optional evidence links.
 - Earlier/later period rate comparisons, a 14-day activity chart, and total tool, prompt, token, and recorded cost metrics.
-- Background analysis with visible progress, per-session warning/failure counts, and reuse of unchanged reports in memory.
+- Background analysis with visible progress, per-session warning/failure counts, and persistent reuse of unchanged session reports.
 - Optional individual-session browsing and detailed model, token, cache, tool, edit, error, and compaction metrics.
 - Eight coaching checks: brief prompts, missing acceptance cues, edits without recognized verification, edits after verification, tool failures, repeated failing operations, long sessions, and repeated compaction.
 - Evidence IDs, actionable advice, and separate informational findings for verification attempts and delegated sessions.
@@ -51,13 +51,21 @@ Navigation preserves the same date/source/workspace filters and active analysis.
 
 This is a structural adaptation, not full feature parity. The reference's Coding Moments screenshot gallery, Curiosity analysis, Skill Finder, Level Up/learning flows, instruction-file audits, AI readiness scores and code-line accounting are not implemented. They are omitted rather than shown as working features. Context Health is explicitly limited to session evidence. Edit-call totals are not labeled generated code lines. No model-backed feature or outbound model request is enabled.
 
+## Language, origins, workspaces and persistence
+
+- German and English UI, with saved host-scoped language selection. See [contributing translations](docs/translations.md) for adding JSON catalogs and registering another language.
+- Saved date-window selection shared by every page. Reopening the Coach restores it instead of resetting to 30 days.
+- Searchable multi-select of existing Paseo workspaces, with human-readable project/workspace labels in session details, evidence links, and top-workspace lists.
+- Saved session-origin defaults per page, agreed with the user: Dashboard and Anti-Patterns use human-led main sessions; Output, Patterns, Timeline and Context Health include subagents. See [the scope matrix](docs/message-origins.md) for semantics and limitations.
+- [Persistent incremental cache](docs/cache.md): changing 30→7→30 days or restarting the plugin reuses unchanged reports. Tomorrow only new or updated sessions need body imports. A cheap metadata scan still discovers changes; it is not a full body reimport. Cache reuse/import/error counts are visible.
+
 ## Overview first
 
-The overview starts automatically when you open the Coach. Date and exact-directory filters apply to all matching sessions in the selected database. Apply a directory filter explicitly; typing does not start a new analysis for each character. The first analysis of a large history can take several minutes. Results update as it runs and are marked provisional until it finishes. You can leave the screen while the daemon continues. **Browse individual sessions** is optional.
+The overview starts automatically when you open the Coach. Date and Paseo workspace multi-selection apply to all matching sessions in the selected database. Choose one or more existing Paseo workspaces from the searchable dropdown; an empty selection includes all workspaces. The first analysis of a large history can take several minutes. Results update as it runs and are marked provisional until it finishes. You can leave the screen while the daemon continues. **Browse individual sessions** is optional.
 
 Patterns count each warning rule once per session. Informational findings are excluded from coaching priorities. The top three priorities are ranked by affected sessions, with concrete advice. Percentages use all analyzed sessions, including delegated work; they do not indicate productivity or code quality. Trends compare rule occurrence rates in the earlier and later halves of the selected period, with sample counts and percentage-point changes. They compare the session mix within that period, not against a separate previous period. The activity chart covers the last 14 UTC calendar days ending at the chosen cutoff.
 
-Totals describe analyzed reports, not just the current history page. Unknown tokens and costs remain unknown; coverage counts show how many sessions reported them. Read failures and truncated reports remain visible. Refresh starts a new cutoff and reuses reports for unchanged session timestamps. Up to four overview jobs and 1000 normalized reports are cached in daemon memory; plugin reload or daemon restart clears them. Overlapping jobs share in-flight session reads. Disabling a provider stops its overview before the next session is read.
+Totals describe analyzed reports, not just the current history page. Unknown tokens and costs remain unknown; coverage counts show how many sessions reported them. Read failures and truncated reports remain visible. Refresh starts a new cutoff and reuses reports for unchanged session timestamps. Up to six overview jobs and 1000 normalized reports are retained in memory. Derived session reports are also saved in an atomic, compressed disk cache, so plugin reloads and daemon restarts do not discard analysis results. Overlapping jobs share in-flight session reads. Disabling a provider stops its overview before the next session is read.
 
 ## Data sources
 
@@ -69,11 +77,11 @@ If V2 and older tables coexist, V2 is used exclusively to avoid counting migrate
 
 Findings describe observable log patterns. They do not assess correctness, productivity, or individual performance. Brief follow-ups can be appropriate. Prompt specificity uses English/German cues and file-path patterns. A verification command does not prove a passing result; tool completion does not imply exit code zero. Ordering within a single assistant message is not evaluated for the final-edit check.
 
-Input tokens represent recorded uncached input; cache reads and writes are reported separately. Tokens are counted on assistant messages, never again on step-finish parts. Unknown usage stays unknown. Session metadata costs are used for page totals; detailed metrics sum recorded assistant calls. Recorded costs depend on OpenCode/provider accounting and are not invoices. Elapsed span includes idle time.
+Input tokens represent recorded uncached input; cache reads and writes are reported separately. Tokens are counted on assistant messages, never again on step-finish parts. Unknown usage stays unknown. Usage and cost metrics sum recorded assistant calls in the chosen session scope. Recorded costs depend on OpenCode/provider accounting and are not invoices. Elapsed span includes idle time.
 
-Sessions with a parent are treated as delegated; their prompts are excluded from human metrics. System and synthetic records are excluded too. Each report reads at most 2000 messages and 20000 older content parts. Each query has a 32 MiB content budget. Records over 2 MiB or malformed JSON are skipped with a warning. Text is capped at 20000 characters per message. Incomplete logs can produce incomplete findings. Data may change while a live session is being read; refresh for a newer report.
+Sessions with a parent are treated as delegated; their prompts are excluded from human metrics. System records are excluded; explicitly synthetic prompts are counted as AI prompts, never human prompts. Each report reads at most 2000 messages and 20000 older content parts. Each query has a 32 MiB content budget. Records over 2 MiB or malformed JSON are skipped with a warning. Text is capped at 20000 characters per message. Incomplete logs can produce incomplete findings. Data may change while a live session is being read; refresh for a newer report.
 
-The source database is always opened read-only. No recorded tool command is executed. No session content is sent to external model services or telemetry endpoints. Authorized Paseo clients receive titles, directories, aggregate metrics, and evidence IDs. Normalized reports are held in a bounded daemon memory cache and in the normal client query cache; this plugin does not persist copied conversations.
+The source database is always opened read-only. No recorded tool command is executed. No session content is sent to external model services or telemetry endpoints. Authorized Paseo clients receive titles, directories, aggregate metrics, and evidence IDs. Derived reports are persisted in a protected local cache and retained in bounded daemon memory and the client query cache. Full prompt/response text and tool output are not persisted by the Coach.
 
 ## Development
 

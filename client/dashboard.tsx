@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
+import { Text, I18nProvider, useI18n } from './i18n';
+import { languagePacks } from './locales';
+import { WorkspacePicker } from './workspace-picker';
+import { viewPreferences, type ViewPreferences } from '../shared/preferences';
+import { SettingsSelect } from '@getpaseo/plugin/client/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useRpc, useSettings, type PluginScreenProps } from '@getpaseo/plugin/client';
-import { analyzeRpc, catalogRpc, historyRpc, overviewRpc, preferences } from '../shared/contracts';
+import { analyzeRpc, catalogRpc, historyRpc, overviewRpc, preferences, workspacesRpc } from '../shared/contracts';
 import { AnalysisStatus, AntiPatternsPage, ContextPage, OutputPage, OverviewPanel, PatternsPage } from './overview';
 import { Navigation, pages, type CoachPage } from './navigation';
 import { Action } from './ui';
@@ -10,41 +15,50 @@ import { TimelinePage } from './timeline';
 import { CoachSettings } from './settings';
 
 export function Dashboard(props: PluginScreenProps) {
+  const view = useSettings(viewPreferences);
+  return <I18nProvider language={view.status === 'ready' ? view.values.language : 'en'}><DashboardContent {...props} /></I18nProvider>;
+}
+function DashboardContent(props: PluginScreenProps) {
+  const view = useSettings(viewPreferences), { t } = useI18n();
   const { theme, layout } = props, c = theme.colors;
   const settings = useSettings(preferences);
   const catalogCall = useRpc(catalogRpc), historyCall = useRpc(historyRpc), analyzeCall = useRpc(analyzeRpc), overviewCall = useRpc(overviewRpc);
   const catalog = useQuery({ queryKey: ['coach', 'catalog', settings.status === 'ready' ? settings.revision : 'loading'], queryFn: () => catalogCall({}), enabled: settings.status === 'ready' });
   const [page, setPage] = useState<CoachPage>('dashboard');
   const [sourceId, setSourceId] = useState(''), [sessionId, setSessionId] = useState('');
-  const [directoryDraft, setDirectoryDraft] = useState(''), [directory, setDirectory] = useState('');
-  const [until, setUntil] = useState(() => Date.now()), [since, setSince] = useState(() => Date.now() - 30 * 86400000);
-  const [days, setDays] = useState(30), [offset, setOffset] = useState(0);
+  const workspaceCall = useRpc(workspacesRpc);
+  const workspaceCatalog = useQuery({ queryKey: ['coach', 'workspaces'], queryFn: () => workspaceCall({}), staleTime: 10000 });
+  const [until, setUntil] = useState(() => Date.now());
+  const [offset, setOffset] = useState(0);
+  const days = view.status === 'ready' ? view.values.days : 30;
+  const since = days ? until - days * 86400000 : 0;
+  const workspaceIds = view.status === 'ready' ? view.values.workspaceIds : [];
+  const origin = view.status === 'ready' && page !== 'settings' ? view.values.origins[page] : 'all';
+  const filterKey = JSON.stringify(workspaceIds);
   const selected = settings.status === 'ready' ? settings.values.selected : '';
   const providers = catalog.data?.adapters.filter(a => a.enabled && !a.hidden) ?? [];
   const adapter = providers.find(a => a.id === selected);
   const source = adapter?.sources.find(s => s.id === sourceId) ?? adapter?.sources[0];
   useEffect(() => { setSourceId(''); setSessionId(''); setOffset(0); }, [selected]);
-  useEffect(() => { setSessionId(''); setOffset(0); }, [source?.id, days, directory]);
-  const history = useQuery({ queryKey: ['coach', 'history', selected, source?.id, since, until, directory, offset],
-    queryFn: () => historyCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, directory: directory || undefined, limit: 50, offset }), enabled: !!source && page === 'timeline' });
-  const overview = useQuery({ queryKey: ['coach', 'overview', selected, source?.id, since, until, directory],
-    queryFn: () => overviewCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, directory: directory || undefined }), enabled: !!source, retry: false,
+  useEffect(() => { setSessionId(''); setOffset(0); }, [source?.id, days, filterKey]);
+  const history = useQuery({ queryKey: ['coach', 'history', selected, source?.id, since, until, filterKey, origin, offset],
+    queryFn: () => historyCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, workspaceIds, origin, limit: 50, offset }), enabled: !!source && view.status === 'ready' && page === 'timeline' });
+  const overview = useQuery({ queryKey: ['coach', 'overview', selected, source?.id, since, until, filterKey, origin],
+    queryFn: () => overviewCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, workspaceIds, origin }), enabled: !!source && view.status === 'ready', retry: false,
     refetchInterval: query => query.state.data?.status === 'complete' || query.state.data?.status === 'error' ? false : 1500 });
-  const report = useQuery({ queryKey: ['coach', 'report', selected, source?.id, sessionId],
-    queryFn: () => analyzeCall({ adapterId: selected, sourceId: source!.id, sessionId }), enabled: !!source && !!sessionId && page === 'timeline' });
+  const report = useQuery({ queryKey: ['coach', 'report', selected, source?.id, sessionId, origin],
+    queryFn: () => analyzeCall({ adapterId: selected, sourceId: source!.id, sessionId, origin }), enabled: !!source && !!sessionId && page === 'timeline' });
   const openSession = (id: string) => { setSessionId(id); setPage('timeline'); };
   const overviewProps = overview.data ? { ...props, data: overview.data, onOpenSession: openSession, onNavigate: setPage } : null;
   const current = pages.find(p => p.id === page)!;
-  const applyFilter = () => { setDirectory(directoryDraft.trim()); setUntil(Date.now()); };
+  const saveView = (patch: Partial<ViewPreferences>) => { if (view.status === 'ready') void view.save({ ...view.values, ...patch }, view.revision); };
   const providerFilters = <View style={{ gap: 10 }}>
     <Text style={{ color: c.foregroundMuted, fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>HARNESS / PROVIDER</Text>
     <View style={{ flexDirection: layout.compact ? 'row' : 'column', flexWrap: 'wrap', gap: 6 }}>{providers.map(a => <Action key={a.id} {...props} label={a.title} selected={a.id === selected} disabled={settings.saving} onPress={() => { if (settings.status === 'ready') void settings.save({ ...settings.values, selected: a.id }, settings.revision); }} />)}</View>
     {adapter?.sources.map(s => <Action key={s.id} {...props} label={`${s.label} · ${s.format}`} selected={s.id === source?.id} onPress={() => setSourceId(s.id)} />)}
     <Text style={{ color: c.foregroundMuted, fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>WORKSPACE</Text>
-    <TextInput accessibilityLabel="Filter by exact workspace directory" placeholder="All workspaces" placeholderTextColor={c.foregroundMuted} value={directoryDraft} onChangeText={setDirectoryDraft} onSubmitEditing={applyFilter}
-      style={{ color: c.foreground, padding: 10, fontSize: 12, backgroundColor: c.surface2, borderRadius: 6, borderWidth: 1, borderColor: c.border }} />
-    <Action {...props} label="Apply workspace filter" onPress={applyFilter} />
-    {directory && <Action {...props} label="All workspaces" onPress={() => { setDirectoryDraft(''); setDirectory(''); }} />}
+    <WorkspacePicker {...props} workspaces={workspaceCatalog.data?.workspaces ?? []} selected={workspaceIds} onChange={ids => saveView({ workspaceIds: ids })} disabled={view.status !== 'ready' || view.saving || workspaceCatalog.isPending} error={workspaceCatalog.error?.message} />
+    <SettingsSelect label={t('Language')} value={view.status === 'ready' ? view.values.language : 'en'} options={languagePacks.map(p => ({ label: p.name, value: p.code }))} disabled={view.status !== 'ready' || view.saving} onValueChange={language => saveView({ language })} />
     <Text style={{ color: c.foregroundMuted, fontSize: 10 }}>Local rules · No API costs</Text>
   </View>;
   return <View style={{ flex: 1, width: '100%', height: '100%', minWidth: 0, alignSelf: 'stretch', flexDirection: layout.compact ? 'column' : 'row', backgroundColor: c.surface0 }}>
@@ -52,9 +66,11 @@ export function Dashboard(props: PluginScreenProps) {
     <ScrollView style={{ flex: 1, minWidth: 0 }} contentContainerStyle={{ padding: layout.compact ? 16 : 28, gap: 18, maxWidth: 1480, width: '100%', alignSelf: 'center' }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ gap: 5 }}><Text style={{ color: c.foregroundMuted, fontSize: 11 }}>{current.group} / OpenCode Coach</Text><Text accessibilityRole="header" style={{ color: c.foreground, fontSize: 28, fontWeight: '700' }}>{current.title}</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{current.description}</Text></View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{[7, 30, 90, 0].map(n => <Action key={n} {...props} label={n ? `${n} days` : 'All history'} selected={n === days} onPress={() => { const now = Date.now(); setDays(n); setSince(n ? now - n * 86400000 : 0); setUntil(now); }} />)}<Action {...props} label="Refresh" onPress={() => { setUntil(Date.now()); void catalog.refetch(); if (sessionId) void report.refetch(); }} /></View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{[7, 30, 90, 0].map(n => <Action key={n} {...props} label={n ? `${n} days` : 'All history'} selected={n === days} onPress={() => { const now = Date.now(); saveView({ days: n as 0 | 7 | 30 | 90 }); setUntil(now); }} />)}<Action {...props} label="Refresh" onPress={() => { setUntil(Date.now()); void catalog.refetch(); if (sessionId) void report.refetch(); }} /></View>
       </View>
       {layout.compact && providerFilters}
+      {page !== 'settings' && <SettingsSelect label={t('Session origin')} hint={t('Main sessions reflect your prompting; subagent sessions reflect delegated work. Synthetic prompts never count as human prompts.')} value={origin} disabled={view.status !== 'ready' || view.saving} options={[{ label: t('Main sessions (human-led)'), value: 'human' }, { label: t('Subagent sessions (AI-led)'), value: 'ai' }, { label: t('All sessions'), value: 'all' }]} onValueChange={value => { if (view.status === 'ready') { setSessionId(''); saveView({ origins: { ...view.values.origins, [page]: value as 'human' | 'ai' | 'all' } }); } }} />}
+      {view.saveError && <Text style={{ color: c.statusDanger }}>{String(view.saveError)}</Text>}
       {settings.status !== 'ready' && <Text style={{ color: c.foregroundMuted }}>{settings.status === 'loading' ? 'Loading settings…' : 'Provider settings unavailable. Open Providers to recover.'}</Text>}
       {settings.saveError && <Text style={{ color: c.statusDanger }}>{String(settings.saveError)}</Text>}
       {catalog.error && <Text style={{ color: c.statusDanger }}>{catalog.error.message}</Text>}

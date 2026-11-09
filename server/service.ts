@@ -1,100 +1,118 @@
-import type { Source, HistoryQuery, Report, SessionSummary } from '../shared/model';
+import type { Source, HistoryQuery, SessionSummary } from '../shared/model';
 import type { OverviewInput } from '../shared/overview';
+import type { Origin } from '../shared/preferences';
+import type { WorkspaceCatalog } from '../shared/workspaces';
 import { OverviewAccumulator } from './overview';
 import { setImmediate } from 'node:timers/promises';
 import { analyze } from './analyze';
-import type { AdapterRegistry } from './adapters/types';
+import { ANALYSIS_VERSION, MemoryReportCache, type ReportCache, type ReportBundle } from './cache';
+import { enrichSummary, selectedWorkspace } from './workspaces';
+import type { AdapterRegistry, CoachAdapter } from './adapters/types';
 export interface Preferences { disabled: string[]; hidden: string[]; selected: string; paths: Record<string, string[]> }
+const matchesOrigin = (s: SessionSummary, origin: Origin = 'all') => origin === 'all' || (origin === 'human' ? !s.parentId : !!s.parentId);
 export class CoachService {
   private readonly jobs = new Map<string, { accumulator: OverviewAccumulator; touched: number }>();
-  private readonly reportCache = new Map<string, { updated: number; report: Report }>();
-  private readonly inFlight = new Map<string, Promise<Report>>();
+  private readonly inFlight = new Map<string, Promise<ReportBundle>>();
+  private readonly memory = new Map<string, ReportBundle>();
   private closed = false;
-  dispose() { this.closed = true; this.jobs.clear(); this.reportCache.clear(); this.inFlight.clear(); }
-  constructor(readonly registry: AdapterRegistry, private readonly readPreferences: () => Promise<Preferences>) {}
+  dispose() { this.closed = true; this.jobs.clear(); this.memory.clear(); }
+  constructor(readonly registry: AdapterRegistry, private readonly readPreferences: () => Promise<Preferences>,
+    private readonly cache: ReportCache = new MemoryReportCache(), private readonly readWorkspaces: () => Promise<WorkspaceCatalog> = async () => ({ workspaces: [] })) {}
+  async workspaces() { return this.readWorkspaces(); }
   async catalog() {
     const config = await this.readPreferences();
     return { adapters: await Promise.all(this.registry.all().map(async adapter => {
       const enabled = !config.disabled.includes(adapter.id), hidden = config.hidden.includes(adapter.id);
-      try {
-        return { id: adapter.id, title: adapter.title, description: adapter.description, enabled, hidden,
-          sources: enabled ? await adapter.discover(config.paths[adapter.id] ?? []) : [], error: null };
-      } catch (error) {
-        return { id: adapter.id, title: adapter.title, description: adapter.description, enabled, hidden,
-          sources: [], error: error instanceof Error ? error.message : 'Source discovery failed' };
-      }
+      try { return { id: adapter.id, title: adapter.title, description: adapter.description, enabled, hidden,
+        sources: enabled ? await adapter.discover(config.paths[adapter.id] ?? []) : [], error: null }; }
+      catch (error) { return { id: adapter.id, title: adapter.title, description: adapter.description, enabled, hidden, sources: [], error: error instanceof Error ? error.message : 'Source discovery failed' }; }
     })) };
   }
   private async resolve(adapterId: string, sourceId: string) {
     const adapter = this.registry.get(adapterId), config = await this.readPreferences();
     if (config.disabled.includes(adapterId)) throw new Error('Provider is disabled. Enable it in Coach settings.');
-    const sources = await adapter.discover(config.paths[adapterId] ?? []);
-    const source: Source | undefined = sources.find(s => s.id === sourceId);
+    const source = (await adapter.discover(config.paths[adapterId] ?? [])).find(s => s.id === sourceId);
     if (!source) throw new Error('Source no longer available. Refresh the provider list.');
     return { adapter, source };
   }
-  async history(adapterId: string, sourceId: string, query: HistoryQuery) {
-    const { adapter, source } = await this.resolve(adapterId, sourceId);
-    const sessions = await adapter.history(source, { ...query, limit: query.limit + 1 });
-    return { sessions: sessions.slice(0, query.limit), hasMore: sessions.length > query.limit };
+  private async workspaceSelection(ids?: string[]) {
+    const catalog = await this.readWorkspaces();
+    if (ids?.some(id => !catalog.workspaces.some(w => w.id === id))) throw new Error('A selected workspace is no longer available. Update the workspace selection.');
+    return catalog;
   }
-
-  async overview(input: OverviewInput) {
-    // Enforce activation and source authorization even when serving a cached result.
-    const { adapter, source } = await this.resolve(input.adapterId, input.sourceId);
-    const key = JSON.stringify([input.adapterId, input.sourceId, input.from ?? null, input.to, input.directory ?? '']);
-    let job = this.jobs.get(key);
-    if (job) { job.touched = Date.now(); return job.accumulator.snapshot(); }
-    for (const [id, entry] of this.jobs) {
-      if (entry.accumulator.result.status === 'complete' || entry.accumulator.result.status === 'error') {
-        if (this.jobs.size >= 4 || Date.now() - entry.touched > 900000) this.jobs.delete(id);
-      }
+  private async report(adapter: CoachAdapter, source: Source, summary: SessionSummary, counts?: { reused: number; imported: number; errors: number }) {
+    const key = JSON.stringify([ANALYSIS_VERSION, adapter.id, source.id, summary.id, summary.created, summary.updated]);
+    const found = this.memory.get(key);
+    if (found) { if (counts) counts.reused++; return found; }
+    let pending = this.inFlight.get(key);
+    if (!pending) {
+      pending = (async () => {
+        let cached: ReportBundle | undefined;
+        try { cached = await this.cache.get(key); } catch { if (counts) counts.errors++; }
+        if (cached) { if (counts) counts.reused++; return cached; }
+        const session = await adapter.load(source, summary.id);
+        const bundle = { human: analyze(session, 'human'), ai: analyze(session, 'ai'), all: analyze(session, 'all') };
+        if (counts) counts.imported++;
+        try { await this.cache.put(key, bundle); } catch { if (counts) counts.errors++; }
+        return bundle;
+      })();
+      this.inFlight.set(key, pending);
+    } else if (counts) counts.reused++;
+    try {
+      const value = await pending;
+      this.memory.set(key, value);
+      if (this.memory.size > 1000) this.memory.delete(this.memory.keys().next().value!);
+      return value;
+    } finally { this.inFlight.delete(key); }
+  }
+  async history(adapterId: string, sourceId: string, query: HistoryQuery) {
+    const { adapter, source } = await this.resolve(adapterId, sourceId), catalog = await this.workspaceSelection(query.workspaceIds);
+    if (!query.workspaceIds?.length && (!query.origin || query.origin === 'all')) {
+      const rows = await adapter.history(source, { ...query, limit: query.limit + 1 });
+      return { sessions: rows.slice(0, query.limit).map(s => enrichSummary(s, catalog)), hasMore: rows.length > query.limit };
     }
-    if (this.jobs.size >= 4) throw new Error('Four overview analyses are already running. Wait for one to finish.');
-    const accumulator = new OverviewAccumulator(input);
-    job = { accumulator, touched: Date.now() }; this.jobs.set(key, job);
+    const matched: SessionSummary[] = []; let offset = 0;
+    while (matched.length <= query.offset + query.limit) {
+      const page = await adapter.history(source, { from: query.from, to: query.to, directory: query.directory, limit: 200, offset });
+      matched.push(...page.filter(s => matchesOrigin(s, query.origin) && selectedWorkspace(s, query.workspaceIds, catalog)));
+      if (page.length < 200) break;
+      offset += page.length;
+    }
+    return { sessions: matched.slice(query.offset, query.offset + query.limit).map(s => enrichSummary(s, catalog)), hasMore: matched.length > query.offset + query.limit };
+  }
+  async overview(input: OverviewInput) {
+    const { adapter, source } = await this.resolve(input.adapterId, input.sourceId), catalog = await this.workspaceSelection(input.workspaceIds);
+    const origin = input.origin ?? 'all';
+    const key = JSON.stringify([input.adapterId, input.sourceId, input.from ?? null, input.to, input.directory ?? '', [...(input.workspaceIds ?? [])].sort(), origin, catalog]);
+    const existing = this.jobs.get(key);
+    if (existing) { existing.touched = Date.now(); return existing.accumulator.snapshot(); }
+    for (const [id, entry] of this.jobs) if (['complete', 'error'].includes(entry.accumulator.result.status) && (this.jobs.size >= 6 || Date.now() - entry.touched > 900000)) this.jobs.delete(id);
+    if (this.jobs.size >= 6) throw new Error('Overview analyses are already running. Wait for one to finish.');
+    const accumulator = new OverviewAccumulator(input); accumulator.result.cache.persistent = this.cache.persistent;
+    this.jobs.set(key, { accumulator, touched: Date.now() });
     const assertEnabled = async () => {
       if (this.closed) throw new Error('Coach stopped');
-      const config = await this.readPreferences();
-      if (config.disabled.includes(adapter.id)) throw new Error('Provider disabled; analysis stopped.');
+      if ((await this.readPreferences()).disabled.includes(adapter.id)) throw new Error('Provider disabled; analysis stopped.');
     };
     const run = async () => {
-      const summaries: SessionSummary[] = [], seen = new Set<string>();
-      let offset = 0;
-      // Enumerate every matching page, independently of UI history pagination.
+      const summaries: SessionSummary[] = [], seen = new Set<string>(); let offset = 0;
       while (true) {
         await assertEnabled();
         const page = await adapter.history(source, { from: input.from, to: input.to, directory: input.directory, limit: 200, offset });
-        const fresh = page.filter(s => !seen.has(s.id));
+        const fresh = page.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
         if (page.length && !fresh.length) throw new Error('Provider pagination did not advance. Refresh the overview.');
-        for (const s of fresh) { seen.add(s.id); summaries.push(s); }
-        accumulator.discover(fresh);
+        const included = fresh.filter(s => matchesOrigin(s, origin) && selectedWorkspace(s, input.workspaceIds, catalog)).map(s => enrichSummary(s, catalog));
+        summaries.push(...included); accumulator.discover(included);
         if (page.length < 200) break;
         offset += page.length; await setImmediate();
       }
       accumulator.start(summaries);
       for (const summary of summaries) {
         await assertEnabled();
-        const cacheKey = JSON.stringify([adapter.id, source.id, summary.id]);
-        const cached = this.reportCache.get(cacheKey);
         try {
-          const versionKey = JSON.stringify([cacheKey, summary.updated]);
-          let report: Report;
-          if (cached?.updated === summary.updated) report = cached.report;
-          else {
-            let pending = this.inFlight.get(versionKey);
-            if (!pending) {
-              pending = adapter.load(source, summary.id).then(analyze);
-              this.inFlight.set(versionKey, pending);
-            }
-            try { report = await pending; } finally { this.inFlight.delete(versionKey); }
-          }
-          this.reportCache.delete(cacheKey);
-          this.reportCache.set(cacheKey, { updated: summary.updated, report });
-          if (this.reportCache.size > 1000) this.reportCache.delete(this.reportCache.keys().next().value!);
-          accumulator.add(report);
+          const bundle = await this.report(adapter, source, summary, accumulator.result.cache);
+          const raw = bundle[origin]; accumulator.add({ ...raw, session: enrichSummary(raw.session, catalog) });
         } catch { accumulator.result.failed++; }
-        // Let RPC polling and provider setting changes run between sessions.
         await setImmediate();
       }
       accumulator.result.status = 'complete';
@@ -102,8 +120,11 @@ export class CoachService {
     void run().catch(error => { accumulator.result.status = 'error'; accumulator.result.error = error instanceof Error ? error.message : 'Overview analysis failed'; });
     return accumulator.snapshot();
   }
-  async analyze(adapterId: string, sourceId: string, sessionId: string) {
-    const { adapter, source } = await this.resolve(adapterId, sourceId);
-    return analyze(await adapter.load(source, sessionId));
+  async analyze(adapterId: string, sourceId: string, sessionId: string, origin: Origin = 'all') {
+    const { adapter, source } = await this.resolve(adapterId, sourceId), catalog = await this.readWorkspaces();
+    // Detail requests use the same persistent session cache as the overview.
+    const summary = adapter.summary ? await adapter.summary(source, sessionId) : (await adapter.load(source, sessionId)).summary;
+    const bundle = await this.report(adapter, source, summary);
+    return { ...bundle[origin], session: enrichSummary(bundle[origin].session, catalog) };
   }
 }

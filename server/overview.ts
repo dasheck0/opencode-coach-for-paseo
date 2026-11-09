@@ -8,13 +8,14 @@ const day = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 10
 export class OverviewAccumulator {
   private readonly insights = new Map<string, Insight & { earlier: number; later: number }>();
   private readonly days = new Map<string, Overview['activity'][number]>();
-  private readonly workspaces = new Map<string, { directory: string; sessions: number; humanPrompts: number; toolCalls: number }>();
+  private readonly workspaces = new Map<string, { directory: string; sessions: number; humanPrompts: number; toolCalls: number; workspaceName?: string; projectName?: string }>();
   private readonly models = new Map<string, number>();
   readonly result: Overview;
   constructor(input: OverviewInput, private readonly now: () => number = Date.now) {
-    this.result = { status: 'discovering', generatedAt: now(), from: input.from ?? null, to: input.to, error: null,
+    this.result = { origin: input.origin ?? 'all', status: 'discovering', generatedAt: now(), from: input.from ?? null, to: input.to, error: null,
       matched: 0, analyzed: 0, failed: 0, incomplete: 0, mainSessions: 0, delegatedSessions: 0,
-      metrics: { humanPrompts: 0, assistantCalls: 0, toolCalls: 0, toolErrors: 0, edits: 0,
+      cache: { reused: 0, imported: 0, errors: 0, persistent: false },
+      metrics: { humanPrompts: 0, aiPrompts: 0, assistantCalls: 0, toolCalls: 0, toolErrors: 0, edits: 0,
         editingSessions: 0, verifiedEditingSessions: 0, inputTokens: null, outputTokens: null, cacheRead: null,
         cost: null, usageSessions: 0, costSessions: 0 },
       breakdown: { workspaces: [], models: [], hours: Array(168).fill(0), calendar: [], compactions: 0, compactedSessions: 0, longSessions: 0 },
@@ -25,7 +26,7 @@ export class OverviewAccumulator {
       this.result.matched++;
       const date = new Date(session.created);
       this.result.breakdown.hours[date.getUTCDay() * 24 + date.getUTCHours()]++;
-      const workspace = this.workspaces.get(session.directory) ?? { directory: session.directory, sessions: 0, humanPrompts: 0, toolCalls: 0 };
+      const workspace = this.workspaces.get(session.directory) ?? { directory: session.directory, workspaceName: session.workspaceName, projectName: session.projectName, sessions: 0, humanPrompts: 0, toolCalls: 0 };
       workspace.sessions++; this.workspaces.set(session.directory, workspace);
       if (session.parentId) this.result.delegatedSessions++; else this.result.mainSessions++;
       const key = day(session.created);
@@ -51,7 +52,7 @@ export class OverviewAccumulator {
     if (source.humanPrompts > 30) r.breakdown.longSessions++;
     if (report.warnings.length) r.incomplete++;
     if (earlier) r.periods.earlierSessions++; else r.periods.laterSessions++;
-    for (const key of ['humanPrompts', 'assistantCalls', 'toolCalls', 'toolErrors', 'edits'] as const) m[key] += source[key];
+    for (const key of ['humanPrompts', 'aiPrompts', 'assistantCalls', 'toolCalls', 'toolErrors', 'edits'] as const) m[key] += source[key];
     for (const key of ['inputTokens', 'outputTokens', 'cacheRead', 'cost'] as const) m[key] = nullableAdd(m[key], source[key]);
     if (source.inputTokens !== null || source.outputTokens !== null) m.usageSessions++;
     if (source.cost !== null) m.costSessions++;
@@ -66,7 +67,7 @@ export class OverviewAccumulator {
         examples: [], earlier: 0, later: 0 };
       insight.affectedSessions++;
       if (earlier) insight.earlier++; else insight.later++;
-      if (insight.examples.length < 3) insight.examples.push({ sessionId: report.session.id, title: report.session.title.slice(0, 200) });
+      if (insight.examples.length < 3) insight.examples.push({ sessionId: report.session.id, title: report.session.title.slice(0, 200), workspaceName: report.session.workspaceName, projectName: report.session.projectName });
       this.insights.set(finding.rule, insight);
     }
   }
@@ -84,6 +85,6 @@ export class OverviewAccumulator {
       const key = day(end - (13 - i) * 86400000);
       return { ...(this.days.get(key) ?? { day: key, sessions: 0, analyzed: 0, warningSessions: 0 }) };
     }).filter(d => r.from === null || Date.parse(d.day) + 86400000 > r.from);
-    return { ...r, breakdown: { ...r.breakdown, hours: [...r.breakdown.hours], workspaces: [...this.workspaces.values()].map(w => ({ ...w })).sort((a, b) => b.sessions - a.sessions), models: [...this.models].map(([name, sessions]) => ({ name, sessions })).sort((a, b) => b.sessions - a.sessions), calendar: [...this.days.values()].sort((a, b) => a.day.localeCompare(b.day)).map(({ day, sessions }) => ({ day, sessions })) }, generatedAt: this.now(), metrics: { ...r.metrics }, periods: { ...r.periods }, insights, activity };
+    return { ...r, breakdown: { ...r.breakdown, hours: [...r.breakdown.hours], workspaces: [...this.workspaces.values()].map(w => ({ ...w })).sort((a, b) => b.sessions - a.sessions), models: [...this.models].map(([name, sessions]) => ({ name, sessions })).sort((a, b) => b.sessions - a.sessions), calendar: [...this.days.values()].sort((a, b) => a.day.localeCompare(b.day)).map(({ day, sessions }) => ({ day, sessions })) }, generatedAt: this.now(), cache: { ...r.cache }, metrics: { ...r.metrics }, periods: { ...r.periods }, insights, activity };
   }
 }

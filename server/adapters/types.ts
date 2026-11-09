@@ -7,6 +7,7 @@ export interface CoachAdapter {
   readonly description: string;
   discover(paths: string[]): Promise<Source[]>;
   history(source: Source, query: HistoryQuery): Promise<SessionSummary[]>;
+  summary?(source: Source, sessionId: string): Promise<SessionSummary>;
   load(source: Source, sessionId: string): Promise<Session>;
 }
 export class AdapterRegistry {

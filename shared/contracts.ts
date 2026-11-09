@@ -1,6 +1,8 @@
 import { defineRpc, defineSettings } from '@getpaseo/plugin';
 import { z } from 'zod';
 import { overviewInputSchema, overviewSchema } from './overview';
+import { origins } from './preferences';
+import { workspaceCatalogSchema } from './workspaces';
 import { reportSchema, sourceSchema, summarySchema } from './model';
 
 // New adapter IDs require no changes here or in the UI.
@@ -20,12 +22,14 @@ export const catalogRpc = defineRpc({ name: 'coach.catalog', input: z.object({})
 }) });
 export const historyRpc = defineRpc({ name: 'coach.history', input: z.object({
   adapterId: z.string(), sourceId: z.string(), from: z.number().optional(), to: z.number().optional(),
-  directory: z.string().optional(), limit: z.number().int().min(1).max(100).default(50),
+  directory: z.string().optional(), workspaceIds: z.array(z.string()).optional(), origin: z.enum(origins).optional(), limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).max(1000000).default(0),
 }).refine(x => x.from === undefined || x.to === undefined || x.from <= x.to, 'Start must precede end'),
 output: z.object({ sessions: z.array(summarySchema), hasMore: z.boolean() }) });
 export const analyzeRpc = defineRpc({ name: 'coach.analyze', input: z.object({
-  adapterId: z.string(), sourceId: z.string(), sessionId: z.string().min(1).max(300),
+  adapterId: z.string(), sourceId: z.string(), sessionId: z.string().min(1).max(300), origin: z.enum(origins).optional(),
 }), output: reportSchema });
 
 export const overviewRpc = defineRpc({ name: 'coach.overview', input: overviewInputSchema, output: overviewSchema });
+
+export const workspacesRpc = defineRpc({ name: 'coach.workspaces', input: z.object({}), output: workspaceCatalogSchema });
