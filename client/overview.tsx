@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Text } from './i18n';
+import { Text, useI18n } from './i18n';
 import type { Overview } from '../shared/overview';
 import type { CoachPage } from './navigation';
 import { Action, Panel, Stat, type Surface } from './ui';
 export type OverviewProps = Surface & { data: Overview; onOpenSession: (id: string) => void; onNavigate?: (page: CoachPage) => void };
 
 export function AnalysisStatus({ data, theme }: OverviewProps) {
+  const { locale } = useI18n();
   const c = theme.colors, busy = data.status === 'discovering' || data.status === 'analyzing';
   return <View style={{ gap: 6, padding: 12, borderWidth: 1, borderColor: c.border, borderRadius: 6, backgroundColor: c.surface1 }}>
-    <Text style={{ color: c.foreground, fontSize: 12 }}>{data.status === 'discovering' ? 'Discovering sessions…' : `${data.analyzed.toLocaleString()} / ${data.matched.toLocaleString()} sessions analyzed${busy ? ' · updating automatically' : ' · analysis complete'}`} · Local rules only · No model requests</Text>
+    <Text style={{ color: c.foreground, fontSize: 12 }}>{data.status === 'discovering' ? 'Discovering sessions…' : [data.analyzed.toLocaleString(locale), ' / ', data.matched.toLocaleString(locale), ' sessions analyzed', busy ? ' · updating automatically' : ' · analysis complete']} · Local rules only · No model requests</Text>
     {busy && <><View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: Math.max(1, data.matched), now: data.analyzed + data.failed }} style={{ height: 3, backgroundColor: c.surface2 }}><View style={{ height: 3, width: `${(data.analyzed + data.failed) / Math.max(1, data.matched) * 100}%`, backgroundColor: c.accent }} /></View><Text style={{ color: c.foregroundMuted, fontSize: 11 }}>Totals and patterns are provisional until analysis finishes.</Text></>}
     {data.error && <Text style={{ color: c.statusDanger }}>{data.error} Use Refresh to retry.</Text>}
     {(data.failed > 0 || data.incomplete > 0) && <Text style={{ color: c.statusWarning, fontSize: 12 }}>{data.failed} unreadable sessions · {data.incomplete} incomplete reports. Findings cover available evidence.</Text>}
@@ -101,7 +102,7 @@ export function PatternsPage(props: OverviewProps) {
 export function ContextPage(props: OverviewProps) {
   const { data, theme } = props, c = theme.colors;
   const issues = data.insights.filter(i => ['context-pressure', 'session-hygiene'].includes(i.rule));
-  return <View style={{ gap: 16 }}><View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}><Stat {...props} label="Compactions" value={data.breakdown.compactions} /><Stat {...props} label="Compacted sessions" value={data.breakdown.compactedSessions} /><Stat {...props} label="Long sessions" value={data.breakdown.longSessions} hint="More than 30 human prompts" /></View>
+  return <View style={{ gap: 16 }}><View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}><Stat {...props} label="Compactions" value={data.breakdown.compactions} /><Stat {...props} label="Compacted sessions" value={data.breakdown.compactedSessions} /><Stat {...props} label="Long sessions" value={data.breakdown.longSessions} hint="More than 30 selected prompts" /></View>
     <Panel {...props} title="Session Context Signals"><Text style={{ color: c.foregroundMuted }}>This view evaluates session history. Repository instruction-file audits and AI readiness scores are not included.</Text>{issues.map(i => <View key={i.rule} style={{ gap: 6 }}><Text style={{ color: c.foreground, fontWeight: '600' }}>{i.title} · {i.affectedSessions} sessions</Text><Text style={{ color: c.foregroundMuted }}>{i.advice}</Text></View>)}{!issues.length && <Text style={{ color: c.foregroundMuted }}>No session-hygiene warning rules triggered in analyzed evidence.</Text>}</Panel>
     <Panel {...props} title="Keep Context Useful"><Text style={{ color: c.foreground }}>Checkpoint the current goal, decisions, open questions, and verification status before compaction or a new session.</Text><Text style={{ color: c.foregroundMuted }}>Compaction counts alone do not prove context loss or poor results.</Text></Panel>
   </View>;

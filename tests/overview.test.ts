@@ -126,3 +126,9 @@ it('builds workspace, model, heatmap and context views from all sessions without
   result.breakdown.hours[0] = 999;
   expect(acc.snapshot().breakdown.hours[0]).not.toBe(999);
 });
+it('counts long sessions using the selected prompt origin instead of attributing AI prompts to humans', () => {
+  const s = summary(1), report = analyze(session(s)); report.metrics.humanPrompts = 0; report.metrics.aiPrompts = 40;
+  const ai = new OverviewAccumulator({ adapterId: 'fixture', sourceId: 'db', to: 100, origin: 'ai' }); ai.discover([s]); ai.start([s]); ai.add(report);
+  const human = new OverviewAccumulator({ adapterId: 'fixture', sourceId: 'db', to: 100, origin: 'human' }); human.discover([s]); human.start([s]); human.add(report);
+  expect(ai.snapshot().breakdown.longSessions).toBe(1); expect(human.snapshot().breakdown.longSessions).toBe(0);
+});

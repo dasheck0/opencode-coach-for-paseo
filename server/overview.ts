@@ -49,7 +49,7 @@ export class OverviewAccumulator {
     for (const model of new Set(source.models)) this.models.set(model, (this.models.get(model) ?? 0) + 1);
     r.breakdown.compactions += source.compactions;
     if (source.compactions) r.breakdown.compactedSessions++;
-    if (source.humanPrompts > 30) r.breakdown.longSessions++;
+    if ((r.origin === 'human' ? source.humanPrompts : r.origin === 'ai' ? source.aiPrompts : source.humanPrompts + source.aiPrompts) > 30) r.breakdown.longSessions++;
     if (report.warnings.length) r.incomplete++;
     if (earlier) r.periods.earlierSessions++; else r.periods.laterSessions++;
     for (const key of ['humanPrompts', 'aiPrompts', 'assistantCalls', 'toolCalls', 'toolErrors', 'edits'] as const) m[key] += source[key];
