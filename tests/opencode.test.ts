@@ -62,11 +62,12 @@ it('deduplicates source paths and honors XDG discovery', async () => {
   expect(await a.discover([])).toHaveLength(1);
   expect(defaultRoots({ XDG_DATA_HOME: '/data' }, '/home/fixture')).toContain('/data/opencode');
 });
-it('warns when a session exceeds the bounded analysis window', async () => {
+it('reads sessions longer than the former 2000-message limit in bounded pages', async () => {
   const f = fixture(); f.session('long'); f.db.exec('BEGIN');
   for (let n = 0; n < 2001; n++) f.message(`m${n}`, 'long', 'user', n, { text: 'fixture' });
   f.db.exec('COMMIT');
   const a = new OpenCodeAdapter([f.root]), [s] = await a.discover([]), result = await a.load(s, 'long');
-  expect(result.messages).toHaveLength(2000); expect(result.warnings.join()).toContain('incomplete');
+  expect(result.messages).toHaveLength(2001); expect(result.warnings).toEqual([]);
+  expect(result.messages[0].id).toBe('m0'); expect(result.messages.at(-1)?.id).toBe('m2000');
 });
 it('requires absolute explicit paths', async () => { await expect(new OpenCodeAdapter([]).discover(['relative.db'])).rejects.toThrow('absolute'); });

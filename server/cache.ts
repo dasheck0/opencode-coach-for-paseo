@@ -6,14 +6,15 @@ import { gzip, gunzip } from 'node:zlib';
 import { promisify } from 'node:util';
 import { z } from 'zod';
 import { reportSchema } from '../shared/model';
-import type { Report } from '../shared/model';
+import { factsSchema } from './facts';
+import type { Report, Session } from '../shared/model';
 import type { Origin } from '../shared/preferences';
 const zip = promisify(gzip), unzip = promisify(gunzip);
 // Change only when normalization or analysis semantics change, not for UI/translation updates.
 export const ANALYSIS_VERSION = 4;
 export const defaultCacheDirectory = () => process.env.COACH_CACHE_DIR || join(process.env.PASEO_HOME || join(homedir(), '.paseo'), 'plugin-data', 'opencode-coach-for-paseo', 'cache-v4');
-const bundleSchema = z.object({ human: reportSchema, ai: reportSchema, all: reportSchema });
-export type ReportBundle = Record<Origin, Report>;
+const bundleSchema = z.object({ human: reportSchema, ai: reportSchema, all: reportSchema, facts: factsSchema.optional(), factsVersion: z.number().optional() });
+export type ReportBundle = Record<Origin, Report> & { facts?: Session; factsVersion?: number };
 export interface ReportCache { persistent: boolean; get(key: string): Promise<ReportBundle | undefined>; put(key: string, value: ReportBundle): Promise<void> }
 export class MemoryReportCache implements ReportCache {
   persistent = false; private readonly entries = new Map<string, ReportBundle>();
@@ -27,7 +28,7 @@ export class DiskReportCache implements ReportCache {
   async get(key: string) {
     let bytes: Buffer;
     try { bytes = await readFile(this.path(key)); } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
-    return bundleSchema.parse(JSON.parse((await unzip(bytes, { maxOutputLength: 4 * 1024 * 1024 })).toString('utf8')));
+    return bundleSchema.parse(JSON.parse((await unzip(bytes, { maxOutputLength: 32 * 1024 * 1024 })).toString('utf8')));
   }
   async put(key: string, value: ReportBundle) {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });

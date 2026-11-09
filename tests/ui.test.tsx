@@ -59,7 +59,7 @@ it.each([[false, false], [true, true]])('renders desktop/light and compact/dark 
   const analyzeButton = r.root.findByProps({ accessibilityLabel: 'Analyze Fixture session' });
   await act(async () => analyzeButton.props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
-  expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's', origin: 'all' });
+  expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's', origin: 'all', from: expect.any(Number), to: expect.any(Number) });
   expect(JSON.stringify(r.toJSON())).toContain('Fixture analysis failed');
 });
 it('shows discovery errors with a recovery action', async () => {
@@ -92,7 +92,7 @@ it('shows actionable cross-session insights immediately without opening any sess
   await act(async () => r.root.findByProps({ accessibilityLabel: 'View All Anti-Patterns' }).props.onPress());
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Open evidence: Fixture session' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
-  expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's', origin: 'all' });
+  expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's', origin: 'all', from: expect.any(Number), to: expect.any(Number) });
 });
 it('selects multiple named Paseo projects using a dropdown without accepting arbitrary paths', async () => {
   setup(); const r = await render(Dashboard, props(false, false));

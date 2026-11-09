@@ -6,6 +6,7 @@ const EDIT = /^(write|edit|create|patch|apply_patch|multiedit)$/i;
 export function isVerification(command = '') {
   return /(?:^|[\s;&|])(?:npm\s+(?:run\s+)?(?:test|typecheck|lint|build|check)|pnpm\s+(?:run\s+)?(?:test|typecheck|lint|build|check)|yarn\s+(?:test|typecheck|lint|build|check)|(?:npx\s+)?(?:vitest|jest|tsc|eslint|pytest)|python(?:3)?\s+-m\s+(?:pytest|unittest)|go\s+test|cargo\s+test|dotnet\s+test|mvn\s+test)(?:\s|$)/i.test(command);
 }
+export const isSpecific = (text: string) => /\b(test|verify|acceptance|expected|must|constraint|prüf|erwart|akzeptanz)|\.[a-z]{1,5}\b|[/\\][\w.-]+/i.test(text);
 const total = (messages: Message[], key: 'inputTokens' | 'outputTokens' | 'cacheRead' | 'cacheWrite' | 'cost') => {
   const values = messages.map(m => m[key]).filter((n): n is number => n !== null);
   return values.length ? values.reduce((a, b) => a + b, 0) : null;
@@ -19,14 +20,14 @@ export function analyze(session: Session, origin: Origin = 'human'): Report {
   const tools = assistant.flatMap(m => m.tools.map(tool => ({ ...tool, messageId: m.id })));
   const edits = tools.filter(t => EDIT.test(t.name) && t.status === 'completed');
   const errors = tools.filter(t => t.status === 'error');
-  const checks = tools.filter(t => /bash|shell|exec|terminal/i.test(t.name) && isVerification(t.command));
+  const checks = tools.filter(t => t.verification ?? (/bash|shell|exec|terminal/i.test(t.name) && isVerification(t.command)));
   const findings: Finding[] = [];
   const add = (rule: string, title: string, evidence: string, advice: string, ids: string[], severity: 'info' | 'warning' = 'warning') =>
     findings.push({ rule, title, severity, evidence, advice, messageIds: [...new Set(ids)].slice(0, 20) });
-  const vague = prompts.filter(m => m.text.trim().length > 0 && m.text.trim().length < 25);
+  const vague = prompts.filter(m => m.promptFeatures?.short ?? (m.text.trim().length > 0 && m.text.trim().length < 25));
   if (vague.length) add('short-prompts', 'Make brief prompts actionable', `${vague.length} selected prompt(s) contain fewer than 25 characters. Short follow-ups can be appropriate.`,
     'For a new task, include the goal, relevant files, constraints, and a way to verify the result.', vague.map(m => m.id));
-  const specific = prompts.filter(m => /\b(test|verify|acceptance|expected|must|constraint|prüf|erwart|akzeptanz)|\.[a-z]{1,5}\b|[/\\][\w.-]+/i.test(m.text));
+  const specific = prompts.filter(m => m.promptFeatures?.specific ?? isSpecific(m.text));
   if (prompts.length >= 3 && specific.length / prompts.length < 0.34) add('acceptance-criteria', 'State the expected result',
     `${specific.length} of ${prompts.length} selected prompts contain recognizable file, constraint, or verification cues. This is a language heuristic.`,
     'Include a concrete before/after example and acceptance criteria in the next task brief.', prompts.map(m => m.id));
@@ -43,7 +44,7 @@ export function analyze(session: Session, origin: Origin = 'human'): Report {
     'Inspect the first failure and adjust the command, permissions, or assumptions before retrying.', errors.map(t => t.messageId));
   const repeated = new Map<string, typeof tools>();
   for (const tool of errors) {
-    const key = `${tool.name}:${tool.command || tool.file || tool.id}`;
+    const key = tool.retryKey ?? `${tool.name}:${tool.command || tool.file || tool.id}`;
     repeated.set(key, [...(repeated.get(key) ?? []), tool]);
   }
   const loops = [...repeated.values()].filter(group => group.length >= 3).flat();
@@ -59,13 +60,13 @@ export function analyze(session: Session, origin: Origin = 'human'): Report {
     'Review the parent session to assess the human task brief.', [], 'info');
   if (!human.length && !assistant.length) add('no-evidence', 'No analyzable conversation', 'The available records contain no human prompts or assistant calls.',
     'Check the source database or choose another session.', [], 'info');
-  return { session: session.summary, findings, warnings: session.warnings,
+  return { activity: [...new Set(messages.map(m => m.timestamp))].sort((a, b) => a - b), session: session.summary, findings, warnings: session.warnings,
     metrics: { humanPrompts: human.length, aiPrompts: ai.length, assistantCalls: assistant.length, toolCalls: tools.length,
       toolErrors: errors.length, edits: edits.length, verificationCommands: checks.length, compactions: session.compactions,
       inputTokens: total(assistant, 'inputTokens'), outputTokens: total(assistant, 'outputTokens'),
       cacheRead: total(assistant, 'cacheRead'), cacheWrite: total(assistant, 'cacheWrite'), cost: total(assistant, 'cost'),
       models: [...new Set(assistant.flatMap(m => m.model ? [m.model] : []))],
-      durationMinutes: Math.max(0, session.summary.updated - session.summary.created) / 60000,
+      durationMinutes: Math.max(0, (messages.at(-1)?.timestamp ?? 0) - (messages[0]?.timestamp ?? 0)) / 60000,
       promptSpecificity: prompts.length ? Math.round(specific.length / prompts.length * 100) : null,
     } };
 }

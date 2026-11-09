@@ -23,7 +23,7 @@ export default function contribute(server: PluginServerContext) {
   }, new DiskReportCache(defaultCacheDirectory()), workspaceCatalog);
   server.handle(catalogRpc, () => service.catalog());
   server.handle(historyRpc, ({ adapterId, sourceId, ...query }, { paseo }) => { api = paseo; return service.history(adapterId, sourceId, query); });
-  server.handle(analyzeRpc, ({ adapterId, sourceId, sessionId, origin }, { paseo }) => { api = paseo; return service.analyze(adapterId, sourceId, sessionId, origin); });
+  server.handle(analyzeRpc, ({ adapterId, sourceId, sessionId, origin, ...period }, { paseo }) => { api = paseo; return service.analyze(adapterId, sourceId, sessionId, origin, period); });
   server.handle(overviewRpc, (input, { paseo }) => { api = paseo; return service.overview(input); });
   server.handle(workspacesRpc, (_input, { paseo }) => { api = paseo; return service.workspaces(); });
   return () => service.dispose();

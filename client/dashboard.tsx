@@ -52,8 +52,8 @@ function DashboardContent(props: PluginScreenProps) {
   const overview = useQuery({ queryKey: ['coach', 'overview', selected, source?.id, since, until, filterKey, origin],
     queryFn: () => overviewCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin }), enabled: !!source && filterReady && view.status === 'ready', retry: false,
     refetchInterval: query => query.state.data?.status === 'complete' || query.state.data?.status === 'error' ? false : 1500 });
-  const report = useQuery({ queryKey: ['coach', 'report', selected, source?.id, sessionId, origin],
-    queryFn: () => analyzeCall({ adapterId: selected, sourceId: source!.id, sessionId, origin }), enabled: !!source && !!sessionId && page === 'timeline' });
+  const report = useQuery({ queryKey: ['coach', 'report', selected, source?.id, sessionId, origin, since, until],
+    queryFn: () => analyzeCall({ adapterId: selected, sourceId: source!.id, sessionId, origin, from: days ? since : undefined, to: until }), enabled: !!source && !!sessionId && page === 'timeline' });
   const openSession = (id: string) => { setSessionId(id); setPage('timeline'); };
   const overviewProps = overview.data ? { ...props, data: overview.data, onOpenSession: openSession, onNavigate: setPage } : null;
   const current = pages.find(p => p.id === page)!;
@@ -94,7 +94,7 @@ function DashboardContent(props: PluginScreenProps) {
         {page === 'timeline' && source && <TimelinePage {...props} sessions={history.data?.sessions ?? []} sessionId={sessionId} onSelect={openSession} offset={offset} onOffset={setOffset} hasMore={!!history.data?.hasMore}
           loading={history.isPending} error={history.error?.message} report={report.data} reportLoading={!!sessionId && report.isPending} reportError={report.error?.message} />}
       </>}
-      {source && <Text selectable numberOfLines={1} style={{ color: c.foregroundMuted, fontSize: 10 }}>Source: {source.path} · Session creation dates define the selected period.</Text>}
+      {source && <Text selectable numberOfLines={1} style={{ color: c.foregroundMuted, fontSize: 10 }}>Source: {source.path} · Message activity defines the selected period; metrics count only messages within it.</Text>}
     </ScrollView>
   </View>;
 }

@@ -27,8 +27,8 @@ export const historyRpc = defineRpc({ name: 'coach.history', input: z.object({
 }).refine(x => x.from === undefined || x.to === undefined || x.from <= x.to, 'Start must precede end'),
 output: z.object({ sessions: z.array(summarySchema), hasMore: z.boolean() }) });
 export const analyzeRpc = defineRpc({ name: 'coach.analyze', input: z.object({
-  adapterId: z.string(), sourceId: z.string(), sessionId: z.string().min(1).max(300), origin: z.enum(origins).optional(),
-}), output: reportSchema });
+  adapterId: z.string(), sourceId: z.string(), sessionId: z.string().min(1).max(300), origin: z.enum(origins).optional(), from: z.number().optional(), to: z.number().optional(),
+}).refine(x => x.from === undefined || x.to === undefined || x.from <= x.to, 'Start must precede end'), output: reportSchema });
 
 export const overviewRpc = defineRpc({ name: 'coach.overview', input: overviewInputSchema, output: overviewSchema });
 

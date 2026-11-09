@@ -2,6 +2,7 @@ import { readdir, realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, isAbsolute, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { setImmediate } from 'node:timers/promises';
 import type { HistoryQuery, Message, Session, SessionSummary, Source, ToolCall } from '../../shared/model';
 import { literal, openDatabase, type Row } from '../sqlite';
 import type { CoachAdapter } from './types';
@@ -21,6 +22,7 @@ export function defaultRoots(env = process.env, home = homedir()): string[] {
 function summary(row: Row, source: Source): SessionSummary {
   return { id: str(row.id), adapterId: 'opencode-v2', sourceId: source.id,
     title: str(row.title) || str(row.slug) || 'Untitled session', directory: str(row.directory),
+    activityStart: num(row.activity_start) ?? undefined, activityEnd: num(row.activity_end) ?? undefined,
     parentId: str(row.parent_id) || null, created: num(row.time_created) ?? 0, updated: num(row.time_updated) ?? 0,
     inputTokens: num(row.tokens_input), outputTokens: num(row.tokens_output), cost: num(row.cost) };
 }
@@ -85,12 +87,22 @@ export class OpenCodeAdapter implements CoachAdapter {
   async history(source: Source, query: HistoryQuery): Promise<SessionSummary[]> {
     const db = await openDatabase(source.path, this.forceCli);
     try {
-      const conditions = [query.from === undefined ? '' : `time_created >= ${literal(query.from)}`,
-        query.to === undefined ? '' : `time_created <= ${literal(query.to)}`,
-        query.directory ? `directory = ${literal(query.directory)}` : ''].filter(Boolean);
       const table = source.format === 'v2' ? 'session_v2' : 'session';
-      const rows = await db.query(`SELECT * FROM ${table} ${conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''}
-        ORDER BY time_created DESC, id DESC LIMIT ${literal(query.limit)} OFFSET ${literal(query.offset)}`);
+      const messageTable = source.format === 'v2' ? 'session_message' : 'message';
+      const bounds = [query.from === undefined ? '' : `m.time_created >= ${literal(query.from)}`,
+        query.to === undefined ? '' : `m.time_created <= ${literal(query.to)}`].filter(Boolean);
+      const emptyBounds = [query.from === undefined ? '' : `s.time_created >= ${literal(query.from)}`,
+        query.to === undefined ? '' : `s.time_created <= ${literal(query.to)}`].filter(Boolean);
+      // Select actual activity, including resumed sessions created before the requested period.
+      // Empty sessions remain visible at their creation date so incomplete logs can be inspected.
+      const conditions = [bounds.length ? `(EXISTS (SELECT 1 FROM ${messageTable} m WHERE m.session_id=s.id AND ${bounds.join(' AND ')})
+        OR (NOT EXISTS (SELECT 1 FROM ${messageTable} m WHERE m.session_id=s.id) AND ${emptyBounds.join(' AND ')}))` : '',
+        query.directory ? `s.directory = ${literal(query.directory)}` : ''].filter(Boolean);
+      const activityWhere = `m.session_id=s.id${bounds.length ? ' AND ' + bounds.join(' AND ') : ''}`;
+      const rows = await db.query(`SELECT s.*,
+        (SELECT MIN(m.time_created) FROM ${messageTable} m WHERE ${activityWhere}) AS activity_start,
+        (SELECT MAX(m.time_created) FROM ${messageTable} m WHERE ${activityWhere}) AS activity_end FROM ${table} s ${conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''}
+        ORDER BY COALESCE(activity_end, s.time_created) DESC, s.id DESC LIMIT ${literal(query.limit)} OFFSET ${literal(query.offset)}`);
       return rows.map(r => summary(r, source));
     } finally { db.close(); }
   }
@@ -109,37 +121,44 @@ export class OpenCodeAdapter implements CoachAdapter {
       const [row] = await db.query(`SELECT * FROM ${v2 ? 'session_v2' : 'session'} WHERE id=${id}`);
       if (!row) throw new Error('Session no longer exists');
       const table = v2 ? 'session_message' : 'message';
-      const rows = await db.query(`WITH limited AS (SELECT * FROM ${table} WHERE session_id=${id}
-        ORDER BY ${v2 ? 'seq' : 'time_created, id'} LIMIT 2001), budget AS (SELECT *,
-        SUM(length(data)) OVER (ORDER BY ${v2 ? 'seq' : 'time_created, id'}) AS bytes FROM limited)
-        SELECT id, ${v2 ? 'type,' : ''} time_created, CASE WHEN length(data) <= 2097152 AND bytes <= 33554432
-        THEN data ELSE NULL END AS data FROM budget ORDER BY ${v2 ? 'seq' : 'time_created, id'}`);
       const warnings: string[] = [];
-      if (rows.length > 2000) warnings.push('Analysis is limited to the first 2000 messages; this report is incomplete.');
       const messages: Message[] = [];
-      let compactions = 0;
+      let compactions = 0; const compactionTimes: number[] = [];
       const parts = new Map<string, Row[]>();
       if (!v2) {
         const partRows = await db.query(`WITH limited AS (SELECT * FROM part WHERE session_id=${id}
-          ORDER BY time_created, id LIMIT 20001), budget AS (SELECT *,
-          SUM(length(data)) OVER (ORDER BY time_created, id) AS bytes FROM limited)
-          SELECT id, message_id, CASE WHEN length(data) <= 2097152 AND bytes <= 33554432 THEN data ELSE NULL END AS data
+          ORDER BY time_created DESC, id DESC LIMIT 20001), budget AS (SELECT *,
+          SUM(length(data)) OVER (ORDER BY time_created DESC, id DESC) AS bytes FROM limited)
+          SELECT id, message_id, time_created, CASE WHEN length(data) <= 2097152 AND bytes <= 33554432 THEN data ELSE NULL END AS data
           FROM budget ORDER BY time_created, id`);
         if (partRows.length > 20000) warnings.push('Analysis is limited to 20000 content parts.');
-        for (const p of partRows.slice(0, 20000)) {
+        for (const p of partRows.slice(-20000)) {
           try {
             const value = { ...decode(p.data), id: p.id };
-            if ((value as Row).type === 'compaction') compactions++;
+            if ((value as Row).type === 'compaction') { compactions++; compactionTimes.push(num(p.time_created) ?? 0); }
             parts.set(str(p.message_id), [...(parts.get(str(p.message_id)) ?? []), value]);
           } catch { warnings.push('An invalid content part or a record exceeding the 2 MiB record / 32 MiB read budget was skipped.'); }
         }
       }
-      for (const r of rows.slice(0, 2000)) {
-        if (r.type === 'compaction') compactions++;
-        try { messages.push(message(r, v2 ? undefined : parts.get(str(r.id)))); }
-        catch { warnings.push('An invalid message or a record exceeding the 2 MiB record / 32 MiB read budget was skipped.'); }
+      let cursor: Row | undefined, exhausted = false;
+      // Small keyset pages bound raw payload memory while retaining old and resumed prompts.
+      for (let count = 0; count < 100000; count += 8) {
+        const before = !cursor ? '' : v2 ? ` AND seq < ${literal(cursor.seq as number)}`
+          : ` AND (time_created < ${literal(cursor.time_created as number)} OR (time_created = ${literal(cursor.time_created as number)} AND id < ${literal(str(cursor.id))}))`;
+        const rows = await db.query(`SELECT id, ${v2 ? 'type, seq,' : ''} time_created,
+          CASE WHEN length(data) <= 2097152 THEN data ELSE NULL END AS data FROM ${table}
+          WHERE session_id=${id}${before} ORDER BY ${v2 ? 'seq DESC' : 'time_created DESC, id DESC'} LIMIT 8`);
+        for (const r of rows) {
+          if (r.type === 'compaction') { compactions++; compactionTimes.push(num(r.time_created) ?? 0); }
+          try { messages.push(message(r, v2 ? undefined : parts.get(str(r.id)))); }
+          catch { warnings.push('An invalid message or a record exceeding the 2 MiB record budget was skipped.'); }
+        }
+        if (rows.length < 8) { exhausted = true; break; }
+        cursor = rows.at(-1); await setImmediate();
       }
-      return { summary: summary(row, source), messages, compactions, warnings: [...new Set(warnings)] };
+      if (!exhausted) warnings.push('Analysis is limited to the most recent 100000 messages; this report is incomplete.');
+      messages.reverse();
+      return { summary: summary(row, source), messages, compactions, compactionTimes, warnings: [...new Set(warnings)] };
     } finally { db.close(); }
   }
 }

@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { mkdtemp, rm, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { gunzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { DiskReportCache } from '../server/cache';
 import { CoachService } from '../server/service';
 import { AdapterRegistry, type CoachAdapter } from '../server/adapters/types';
@@ -61,4 +61,17 @@ it('recovers a corrupt cache entry visibly and rewrites only that session', asyn
   const [file] = await readdir(f.directory); await writeFile(join(f.directory, file), 'corrupt');
   service = f.start(); const result = await complete(service, input);
   expect(result.cache).toMatchObject({ imported: 1, reused: 29, errors: 1 }); service.dispose();
+});
+
+it('upgrades an old aggregate-only cache entry once and persists its timestamped facts', async () => {
+  const f = await fixture(); let service = f.start(); const input = { adapterId: 'fixture', sourceId: 'db', to: f.now };
+  await complete(service, input); service.dispose();
+  const [file] = await readdir(f.directory), path = join(f.directory, file);
+  const old = JSON.parse(gunzipSync(await readFile(path)).toString()); delete old.facts; delete old.factsVersion;
+  await writeFile(path, gzipSync(JSON.stringify(old)));
+  service = f.start(); expect((await complete(service, input)).cache).toMatchObject({ imported: 1, reused: 29, errors: 0 }); service.dispose();
+  const upgraded = JSON.parse(gunzipSync(await readFile(path)).toString()); expect(upgraded.factsVersion).toBe(2);
+  expect(upgraded.facts.messages[0]).toMatchObject({ timestamp: f.now, text: '', promptFeatures: { short: false } });
+  service = f.start(); expect((await complete(service, { ...input, from: f.now - 7 * f.day })).cache).toMatchObject({ imported: 0, reused: 8 }); service.dispose();
+  expect(f.adapter.load).toHaveBeenCalledTimes(31);
 });

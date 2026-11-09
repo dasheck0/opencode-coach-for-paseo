@@ -24,14 +24,9 @@ export class OverviewAccumulator {
   discover(sessions: SessionSummary[]) {
     for (const session of sessions) {
       this.result.matched++;
-      const date = new Date(session.created);
-      this.result.breakdown.hours[date.getUTCDay() * 24 + date.getUTCHours()]++;
       const workspace = this.workspaces.get(session.directory) ?? { directory: session.directory, workspaceName: session.workspaceName, projectName: session.projectName, sessions: 0, humanPrompts: 0, toolCalls: 0 };
       workspace.sessions++; this.workspaces.set(session.directory, workspace);
       if (session.parentId) this.result.delegatedSessions++; else this.result.mainSessions++;
-      const key = day(session.created);
-      const bucket = this.days.get(key) ?? { day: key, sessions: 0, analyzed: 0, warningSessions: 0 };
-      bucket.sessions++; this.days.set(key, bucket);
     }
   }
   start(sessions: SessionSummary[]) {
@@ -42,7 +37,8 @@ export class OverviewAccumulator {
   }
   add(report: Report) {
     const r = this.result, m = r.metrics, source = report.metrics;
-    const earlier = report.session.created < (r.periods.midpoint ?? 0);
+    const times = report.activity ?? [Math.max(report.session.created, r.from ?? report.session.created)];
+    const earlier = (times[0] ?? Math.max(report.session.created, r.from ?? report.session.created)) < (r.periods.midpoint ?? 0);
     r.analyzed++;
     const workspace = this.workspaces.get(report.session.directory);
     if (workspace) { workspace.humanPrompts += source.humanPrompts; workspace.toolCalls += source.toolCalls; }
@@ -59,8 +55,12 @@ export class OverviewAccumulator {
     if (source.edits > 0) { m.editingSessions++; if (source.verificationCommands > 0) m.verifiedEditingSessions++; }
     // A rule counts at most once per session. Informational findings are not problems.
     const warnings = [...new Map(report.findings.filter(f => f.severity === 'warning').map(f => [f.rule, f])).values()];
-    const bucket = this.days.get(day(report.session.created));
-    if (bucket) { bucket.analyzed++; if (warnings.length) bucket.warningSessions++; }
+    for (const hour of new Set(times.map(t => { const d = new Date(t); return d.getUTCDay() * 24 + d.getUTCHours(); }))) r.breakdown.hours[hour]++;
+    for (const date of new Set(times.map(day))) {
+      const bucket = this.days.get(date) ?? { day: date, sessions: 0, analyzed: 0, warningSessions: 0 };
+      bucket.sessions++; bucket.analyzed++; if (warnings.length) bucket.warningSessions++;
+      this.days.set(date, bucket);
+    }
     for (const finding of warnings) {
       const insight = this.insights.get(finding.rule) ?? { rule: finding.rule, title: finding.title, advice: finding.advice,
         affectedSessions: 0, percentage: 0, earlierPercentage: null, laterPercentage: null, changePoints: null,

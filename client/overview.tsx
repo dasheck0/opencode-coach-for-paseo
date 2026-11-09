@@ -15,7 +15,7 @@ export function AnalysisStatus({ data, theme }: OverviewProps) {
     {busy && <><View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: Math.max(1, data.matched), now: data.analyzed + data.failed }} style={{ height: 3, backgroundColor: c.surface2 }}><View style={{ height: 3, width: `${(data.analyzed + data.failed) / Math.max(1, data.matched) * 100}%`, backgroundColor: c.accent }} /></View><Text style={{ color: c.foregroundMuted, fontSize: 11 }}>Totals and patterns are provisional until analysis finishes.</Text></>}
     {data.error && <Text style={{ color: c.statusDanger }}>{data.error} Use Refresh to retry.</Text>}
     {(data.failed > 0 || data.incomplete > 0) && <Text style={{ color: c.statusWarning, fontSize: 12 }}>{data.failed} unreadable sessions · {data.incomplete} incomplete reports. Findings cover available evidence.</Text>}
-    {data.status === 'complete' && !data.matched && <Text style={{ color: c.foregroundMuted }}>No sessions match these filters. Widen the period or clear the workspace filter.</Text>}
+    {data.status === 'complete' && !data.matched && <Text style={{ color: c.foregroundMuted }}>No sessions match these filters. Widen the period or clear the project filter.</Text>}
   </View>;
 }
 export function ActivityChart(props: OverviewProps) {
@@ -26,7 +26,7 @@ export function ActivityChart(props: OverviewProps) {
       <View style={{ width: '75%', height: Math.max(d.sessions ? 3 : 0, d.sessions / peak * 85), backgroundColor: c.accent, borderRadius: 3 }} />
       <Text style={{ color: c.foregroundMuted, fontSize: 9 }}>{d.day.slice(8)}</Text>
     </View>)}</View>
-    <Text style={{ color: c.foregroundMuted, fontSize: 11 }}>Session starts · last {data.activity.length} calendar days in the selected range · UTC</Text>
+    <Text style={{ color: c.foregroundMuted, fontSize: 11 }}>Active sessions · last {data.activity.length} calendar days in the selected range · UTC</Text>
   </Panel>;
 }
 export function OverviewPanel(props: OverviewProps) {
@@ -38,7 +38,7 @@ export function OverviewPanel(props: OverviewProps) {
     { name: 'Tool Mastery', rules: ['tool-errors', 'retry-loop'], hint: 'Failures and repeated operations' },
   ];
   return <View style={{ gap: 18 }}>
-    <View style={{ paddingVertical: 8, gap: 6 }}><Text accessibilityRole="header" style={{ color: c.foreground, fontSize: 21, fontWeight: '600' }}>Your coaching overview</Text><Text style={{ color: c.foregroundMuted }}>All matching sessions · {data.mainSessions} main · {data.delegatedSessions} delegated</Text></View>
+    <View style={{ paddingVertical: 8, gap: 6 }}><Text accessibilityRole="header" style={{ color: c.foreground, fontSize: 21, fontWeight: '600' }}>Your coaching overview</Text><Text style={{ color: c.foregroundMuted }}>All active sessions · {data.mainSessions} main · {data.delegatedSessions} delegated</Text></View>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
       <Stat {...props} label={data.origin === 'ai' ? 'AI prompts' : 'Human prompts'} value={data.origin === 'ai' ? m.aiPrompts : m.humanPrompts} hint={data.origin === 'ai' ? 'Delegated prompts only' : 'Delegated prompts excluded'} /><Stat {...props} label="Sessions" value={data.matched} hint={`${data.analyzed} analyzed`} />
       <Stat {...props} label="Edit operations" value={m.edits} hint="Successful logged edit calls" /><Stat {...props} label="Workspaces" value={data.breakdown.workspaces.length} hint="Distinct session directories" />
@@ -69,7 +69,7 @@ export function AntiPatternsPage(props: OverviewProps) {
   const [openHelp, setOpenHelp] = useState<string | null>(null);
   return <View style={{ gap: 16 }}>
     <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}><Stat {...props} label="Active warning rules" value={data.insights.length} /><Stat {...props} label="Analyzed sessions" value={data.analyzed} /><Stat {...props} label="Incomplete reports" value={data.incomplete} /></View>
-    <Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Ranked by affected sessions. Each rule counts once per session. Trends compare the earlier and later halves of this period, with {data.periods.earlierSessions} and {data.periods.laterSessions} analyzed sessions respectively.</Text>
+    <Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Ranked by affected sessions. Each rule counts once per session. Sessions are assigned to period halves by their first activity within the selected period. Trends compare the earlier and later halves of this period, with {data.periods.earlierSessions} and {data.periods.laterSessions} analyzed sessions respectively.</Text>
     {data.insights.map(i => <Panel key={i.rule} {...props} title={i.title} raised={openHelp === i.rule} trailing={<RuleHelp {...props} rule={i.rule} onOpenChange={open => setOpenHelp(open ? i.rule : null)} />}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}><Text style={{ color: c.statusWarning, fontWeight: '600' }}>{i.affectedSessions} sessions · {i.percentage}%</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{i.changePoints === null ? 'Trend: insufficient evidence' : `${i.earlierPercentage}% → ${i.laterPercentage}% (${i.changePoints > 0 ? '+' : ''}${i.changePoints} pp)`}</Text></View>
       <Text style={{ color: c.foreground }}>{i.advice}</Text>
@@ -94,7 +94,7 @@ export function PatternsPage(props: OverviewProps) {
   const [tab, setTab] = useState<'Work Hours' | 'Calendar' | 'Projects'>('Work Hours');
   const peak = Math.max(1, ...data.breakdown.hours);
   return <View style={{ gap: 16 }}><View style={{ flexDirection: 'row', gap: 8 }}>{(['Work Hours', 'Calendar', 'Projects'] as const).map(t => <Action key={t} {...props} label={t} selected={tab === t} onPress={() => setTab(t)} />)}</View>
-    {tab === 'Work Hours' && <Panel {...props} title="Sessions by Day and Hour"><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Session start times in UTC. Higher intensity means more sessions; this is not a work-life score.</Text><View style={{ flexDirection: 'row', marginLeft: 35 }}>{[0, 6, 12, 18].map(h => <Text key={h} style={{ color: c.foregroundMuted, fontSize: 10, flex: 1 }}>{h}:00</Text>)}</View>
+    {tab === 'Work Hours' && <Panel {...props} title="Sessions by Day and Hour"><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Session activity in UTC. Each session counts once per active hour; this is not a work-life score.</Text><View style={{ flexDirection: 'row', marginLeft: 35 }}>{[0, 6, 12, 18].map(h => <Text key={h} style={{ color: c.foregroundMuted, fontSize: 10, flex: 1 }}>{h}:00</Text>)}</View>
       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((label, day) => <View key={label} style={{ flexDirection: 'row', gap: layout.compact ? 2 : 4, alignItems: 'center' }}><Text style={{ color: c.foregroundMuted, fontSize: 11, width: 30 }}>{label}</Text>{Array.from({ length: 24 }, (_, h) => <View key={h} accessibilityLabel={`${label} ${h}:00 UTC: ${data.breakdown.hours[day * 24 + h]} sessions`} style={{ flex: 1, height: layout.compact ? 13 : 20, borderRadius: 2, backgroundColor: c.accent, opacity: data.breakdown.hours[day * 24 + h] ? 0.2 + data.breakdown.hours[day * 24 + h] / peak * 0.8 : 0.06 }} />)}</View>)}
     </Panel>}
     {tab === 'Calendar' && <><ActivityChart {...props} /><Panel {...props} title="Calendar Activity"><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{data.breakdown.calendar.map(d => <View key={d.day} style={{ padding: 10, borderRadius: 6, backgroundColor: c.surface2 }}><Text style={{ color: c.foregroundMuted, fontSize: 11 }}>{d.day}</Text><Text style={{ color: c.foreground, fontWeight: '600' }}>{d.sessions} sessions</Text></View>)}</View></Panel></>}

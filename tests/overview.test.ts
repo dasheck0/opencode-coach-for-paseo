@@ -116,7 +116,7 @@ it('builds workspace, model, heatmap and context views from all sessions without
   const summaries = [summary(10), summary(20)]; acc.discover(summaries); acc.start(summaries);
   const report = analyze(session(summaries[0])); report.metrics.models = ['fixture-model', 'fixture-model'];
   report.metrics.compactions = 4; report.metrics.humanPrompts = 31; report.metrics.toolCalls = 6;
-  acc.add(report);
+  acc.add(report); acc.add(analyze(session(summaries[1], false)));
   const result = acc.snapshot();
   expect(result.breakdown.workspaces).toEqual([{ directory: '/fixture', sessions: 2, humanPrompts: 31, toolCalls: 6 }]);
   expect(result.breakdown.models).toEqual([{ name: 'fixture-model', sessions: 1 }]);

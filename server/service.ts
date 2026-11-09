@@ -4,6 +4,7 @@ import type { Origin } from '../shared/preferences';
 import type { WorkspaceCatalog } from '../shared/workspaces';
 import { OverviewAccumulator } from './overview';
 import { setImmediate } from 'node:timers/promises';
+import { periodSession, sessionFacts, type Period } from './facts';
 import { analyze } from './analyze';
 import { ANALYSIS_VERSION, MemoryReportCache, type ReportCache, type ReportBundle } from './cache';
 import { enrichSummary, selectedProject, projectsFor } from './workspaces';
@@ -49,9 +50,10 @@ export class CoachService {
       pending = (async () => {
         let cached: ReportBundle | undefined;
         try { cached = await this.cache.get(key); } catch { if (counts) counts.errors++; }
-        if (cached) { if (counts) counts.reused++; return cached; }
+        if (cached?.factsVersion === 2 && cached.facts) { if (counts) counts.reused++; return cached; }
         const session = await adapter.load(source, summary.id);
-        const bundle = { human: analyze(session, 'human'), ai: analyze(session, 'ai'), all: analyze(session, 'all') };
+        const facts = sessionFacts(session);
+        const bundle: ReportBundle = { human: analyze(facts, 'human'), ai: analyze(facts, 'ai'), all: analyze(facts, 'all'), facts, factsVersion: 2 };
         if (counts) counts.imported++;
         try { await this.cache.put(key, bundle); } catch { if (counts) counts.errors++; }
         return bundle;
@@ -111,7 +113,7 @@ export class CoachService {
         await assertEnabled();
         try {
           const bundle = await this.report(adapter, source, summary, accumulator.result.cache);
-          const raw = bundle[origin]; accumulator.add({ ...raw, session: enrichSummary(raw.session, catalog) });
+          const raw = analyze(periodSession(bundle.facts!, input), origin); accumulator.add({ ...raw, session: enrichSummary(raw.session, catalog) });
         } catch { accumulator.result.failed++; }
         await setImmediate();
       }
@@ -120,11 +122,12 @@ export class CoachService {
     void run().catch(error => { accumulator.result.status = 'error'; accumulator.result.error = error instanceof Error ? error.message : 'Overview analysis failed'; });
     return accumulator.snapshot();
   }
-  async analyze(adapterId: string, sourceId: string, sessionId: string, origin: Origin = 'all') {
+  async analyze(adapterId: string, sourceId: string, sessionId: string, origin: Origin = 'all', period: Period = {}) {
     const { adapter, source } = await this.resolve(adapterId, sourceId), catalog = await this.readWorkspaces();
     // Detail requests use the same persistent session cache as the overview.
     const summary = adapter.summary ? await adapter.summary(source, sessionId) : (await adapter.load(source, sessionId)).summary;
     const bundle = await this.report(adapter, source, summary);
-    return { ...bundle[origin], session: enrichSummary(bundle[origin].session, catalog) };
+    const report = analyze(periodSession(bundle.facts!, period), origin);
+    return { ...report, session: enrichSummary(report.session, catalog) };
   }
 }
