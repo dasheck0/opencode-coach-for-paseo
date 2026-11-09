@@ -123,3 +123,10 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - Main-session segments use blue; delegated segments use green, based on the existing parent-session metadata. A localized Main/Delegated legend appears beside each timeline; inspected origin remains available as text.
 - Category colors use opaque fills, preserving their contrast instead of fading inactive segments. Selection still uses a thicker segment and border. Text, surfaces and borders continue to use host theme tokens.
 - Existing timeline, translation, desktop/light and compact/dark interaction tests were run with the standard check suite. Analysis logic and cache behavior are unchanged.
+
+## v0.7.4: compact heatmap cell popovers (2026-11-09)
+
+- TypeScript and 79 tests passed locally. Added English/desktop and German/compact cell interactions for hover, focus, blur and click, including zero counts, exact hour intervals and a single active popover.
+- Each cell popover contains only its localized weekday, UTC hour interval and session count. Horizontal positioning stays inside the grid and the active row/card is raised over adjacent content. Click pins the details until another click or blur; hover details close on leave.
+- The heatmap reads the existing 168 overview buckets. No RPC, session import, analysis or cache changes were introduced.
+- Plugin reload reported running. Native Paseo check opened a Monday 08:00–09:00 UTC cell and confirmed a three-line German popover showing Montag, the hour interval and 21 Sessions.

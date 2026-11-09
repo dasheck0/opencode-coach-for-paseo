@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.7.3
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.7.4
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -128,3 +128,5 @@ Each Timeline workspace is presented as its own card. A header badge shows its m
 Session inspectors no longer have a selection dropdown. Analyze expands the report directly below its action inside the workspace card, including loading and error states, without scrolling to the page top. The last inspected session remains selected when leaving its segment. Previous/next arrows beside the title keep overlapping sessions reachable. Evidence links can locate the appropriate workspace page through filtered metadata; sessions excluded by current history filters retain an explicitly labeled context card.
 
 Timeline main-session segments are blue and delegated-session segments are green. Each workspace track has a matching legend; the inline inspector also labels the session origin in text. Category colors remain consistent across host themes while surrounding text and surfaces use Paseo theme tokens.
+
+Hour-grid cells show a compact hover/focus/click popover containing only the weekday, UTC hour interval and session count, including zero-session cells. Counts come from the existing filtered overview.

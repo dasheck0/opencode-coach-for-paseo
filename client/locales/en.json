@@ -321,5 +321,6 @@
   "Next session": "Next session",
   "Session analysis": "Session analysis",
   "Some sessions overlap. Use the arrows beside the title to reach every session.": "Some sessions overlap. Use the arrows beside the title to reach every session.",
-  "This session is outside the current history filters.": "This session is outside the current history filters."
+  "This session is outside the current history filters.": "This session is outside the current history filters.",
+  "Cell details": "Cell details"
 }

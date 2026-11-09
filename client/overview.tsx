@@ -1,3 +1,4 @@
+import { SessionHeatmap } from './session-heatmap';
 import { RuleHelp } from './rule-help';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -92,11 +93,8 @@ export function OutputPage(props: OverviewProps) {
 export function PatternsPage(props: OverviewProps & { tab: 'Work Hours' | 'Calendar' | 'Projects'; onTabChange: (tab: 'Work Hours' | 'Calendar' | 'Projects') => void }) {
   const { data, theme, layout } = props, c = theme.colors;
   const { tab, onTabChange: setTab } = props;
-  const peak = Math.max(1, ...data.breakdown.hours);
   return <View style={{ gap: 16 }}><View style={{ flexDirection: 'row', gap: 8 }}>{(['Work Hours', 'Calendar', 'Projects'] as const).map(t => <Action key={t} {...props} label={t} selected={tab === t} onPress={() => setTab(t)} />)}</View>
-    {tab === 'Work Hours' && <Panel {...props} title="Sessions by Day and Hour"><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Session activity in UTC. Each session counts once per active hour; this is not a work-life score.</Text><View style={{ flexDirection: 'row', marginLeft: 35 }}>{[0, 6, 12, 18].map(h => <Text key={h} style={{ color: c.foregroundMuted, fontSize: 10, flex: 1 }}>{h}:00</Text>)}</View>
-      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((label, day) => <View key={label} style={{ flexDirection: 'row', gap: layout.compact ? 2 : 4, alignItems: 'center' }}><Text style={{ color: c.foregroundMuted, fontSize: 11, width: 30 }}>{label}</Text>{Array.from({ length: 24 }, (_, h) => <View key={h} accessibilityLabel={`${label} ${h}:00 UTC: ${data.breakdown.hours[day * 24 + h]} sessions`} style={{ flex: 1, height: layout.compact ? 13 : 20, borderRadius: 2, backgroundColor: c.accent, opacity: data.breakdown.hours[day * 24 + h] ? 0.2 + data.breakdown.hours[day * 24 + h] / peak * 0.8 : 0.06 }} />)}</View>)}
-    </Panel>}
+    {tab === 'Work Hours' && <SessionHeatmap {...props} hours={data.breakdown.hours} />}
     {tab === 'Calendar' && <><ActivityChart {...props} /><Panel {...props} title="Calendar Activity"><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{data.breakdown.calendar.map(d => <View key={d.day} style={{ padding: 10, borderRadius: 6, backgroundColor: c.surface2 }}><Text style={{ color: c.foregroundMuted, fontSize: 11 }}>{d.day}</Text><Text style={{ color: c.foreground, fontWeight: '600' }}>{d.sessions} sessions</Text></View>)}</View></Panel></>}
     {tab === 'Projects' && <Panel {...props} title="Projects"><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>All matched directories; prompt and tool totals cover analyzed sessions.</Text>{data.breakdown.workspaces.map(w => <View key={w.directory} style={{ paddingVertical: 10, borderTopWidth: 1, borderColor: c.border, gap: 5 }}><Text verbatim selectable style={{ color: c.foreground, fontSize: 12 }}>{w.projectName ? w.projectName + ' · ' : ''}{w.workspaceName || w.directory || 'Unknown directory'}</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{w.sessions} sessions · {w.humanPrompts} human prompts · {w.toolCalls} tool calls</Text></View>)}</Panel>}
   </View>;
