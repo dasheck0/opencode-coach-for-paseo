@@ -10,6 +10,7 @@ export function SessionTimeline({ sessions, selectedId, onOpenSession, from, to,
 }) {
   const [pinned, setPinned] = useState(''), [preview, setPreview] = useState(''), [width, setWidth] = useState(600);
   const { locale, t } = useI18n(), c = theme.colors;
+  const mainColor = '#3b82f6', delegatedColor = '#16a34a';
   const model = timelineLayout(sessions, from, to), ticks = timelineTicks(model.start, model.end, layout.compact ? 3 : 5);
   const selected = model.segments.find(s => s.session.id === pinned) ?? model.segments.find(s => s.session.id === selectedId) ?? model.segments[0];
   const inspected = model.segments.find(s => s.session.id === preview) ?? selected;
@@ -20,6 +21,12 @@ export function SessionTimeline({ sessions, selectedId, onOpenSession, from, to,
   const s = inspected!.session, index = model.segments.findIndex(segment => segment.session.id === s.id);
   const step = (next: number) => { setPreview(''); setPinned(model.segments[next].session.id); };
   return <View style={{ gap: 12 }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+      {([['Main', mainColor], ['Delegated', delegatedColor]] as const).map(([label, color]) => <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={{ width: 12, height: 8, borderRadius: 3, backgroundColor: color }} />
+        <Text style={{ color: c.foregroundMuted, fontSize: 11 }}>{label}</Text>
+      </View>)}
+    </View>
     <Text verbatim style={{ color: c.foregroundMuted, fontSize: 11 }}>{stamp(model.start)} — {stamp(model.end)} UTC</Text>
     <View accessibilityLabel={t('Session activity track')} onLayout={event => setWidth(Math.max(1, event.nativeEvent.layout.width))} style={{ gap: 5 }}>
       <View style={{ height: 24, borderRadius: 6, backgroundColor: c.surface2, position: 'relative' }}>
@@ -30,7 +37,7 @@ export function SessionTimeline({ sessions, selectedId, onOpenSession, from, to,
             onHoverIn={() => setPreview(segment.session.id)} onHoverOut={() => { setPinned(segment.session.id); setPreview(''); }} onFocus={() => setPreview(segment.session.id)} onBlur={() => { setPinned(segment.session.id); setPreview(''); }}
             onPress={() => { setPreview(''); setPinned(segment.session.id); }}
             style={{ position: 'absolute', left: `${left * 100}%`, width: `${segmentWidth * 100}%`, top: 0, height: 24, justifyContent: 'center', zIndex: Math.round((1 - segment.width) * 1000) + 1 }}>
-            <View style={{ height: active ? 10 : 6, borderRadius: 4, backgroundColor: c.accent, opacity: active ? 1 : 0.65, borderWidth: 1, borderColor: active ? c.foreground : c.surface2 }} />
+            <View style={{ height: active ? 10 : 6, borderRadius: 4, backgroundColor: segment.session.parentId ? delegatedColor : mainColor, borderWidth: 1, borderColor: active ? c.foreground : c.surface2 }} />
           </Pressable>;
         })}
       </View>

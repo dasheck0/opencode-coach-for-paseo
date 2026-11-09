@@ -117,3 +117,9 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - Loading/errors/reports render through an inline detail slot. Leaving a hovered/focused segment retains that inspected session so moving to Analyze does not silently change the target. No global report is rendered above the workspace cards.
 - The metadata-only history endpoint can locate a matching evidence session's workspace page. A service test verifies that a session in the final workspace group resolves to that page. Reports outside current history filters have an explicitly labeled context card rather than disappearing.
 - Plugin reload reported running. Native interaction was not repeated because the active Paseo surface was outside the Coach; placement and scroll behavior were verified by component interaction tests.
+
+## v0.7.3: distinguish session origins by color (2026-11-09)
+
+- Main-session segments use blue; delegated segments use green, based on the existing parent-session metadata. A localized Main/Delegated legend appears beside each timeline; inspected origin remains available as text.
+- Category colors use opaque fills, preserving their contrast instead of fading inactive segments. Selection still uses a thicker segment and border. Text, surfaces and borders continue to use host theme tokens.
+- Existing timeline, translation, desktop/light and compact/dark interaction tests were run with the standard check suite. Analysis logic and cache behavior are unchanged.
