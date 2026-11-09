@@ -30,5 +30,6 @@ export function enrichSummary(summary: SessionSummary, catalog: WorkspaceCatalog
 export function selectedWorkspace(summary: SessionSummary, ids: string[] | undefined, catalog: WorkspaceCatalog) {
   if (!ids?.length) return true;
   const workspace = workspaceFor(summary.directory, catalog);
-  return !!workspace && ids.includes(workspace.id);
+  // Local Paseo workspaces may share a directory. Their sessions cannot be separated by directory metadata alone.
+  return !!workspace && catalog.workspaces.some(w => ids.includes(w.id) && normalized(w.directory) === normalized(workspace.directory));
 }

@@ -46,7 +46,7 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 
 ## Version 0.4: saved language, workspace scope and persistent incremental analysis
 
-- Strict typecheck and 48 tests pass across eight files. Added German/English catalog parity and template tests, saved-language/date/origin rendering, named Paseo workspace multi-selection, path-boundary matching, corrupt-cache recovery and persistent reuse across service restarts.
+- Strict typecheck and 49 tests pass across eight files. Added German/English catalog parity and template tests, saved-language/date/origin rendering, named Paseo workspace multi-selection, path-boundary matching, corrupt-cache recovery and persistent reuse across service restarts.
 - The restart test imports 30 sessions once, reuses them for 30→7→30 days, then imports exactly two records on the simulated next day: one new and one updated. Raw prompt text is absent from all compressed derived-report cache entries.
 - Session-origin defaults were explicitly approved: human-led main sessions for Dashboard and Anti-Patterns; all sessions for Output, Patterns, Timeline and Context Health. Their saved per-page controls and semantics are documented in docs/message-origins.md.
 - Live host discovery returned 35 Paseo workspaces, including 20 named worktrees. Ten of ten sampled sessions received project/workspace annotations; a two-workspace history filter returned only those workspace IDs.

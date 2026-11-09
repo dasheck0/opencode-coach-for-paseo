@@ -17,3 +17,7 @@ it('supports multi-selection with path boundaries instead of accidental prefix m
   expect(selectedWorkspace({ ...summary, directory: '/project-other' }, ['w2'], catalog)).toBe(false);
   expect(selectedWorkspace({ ...summary, directory: '/project/subdir' }, ['w2'], catalog)).toBe(true);
 });
+it('includes a selected local workspace alias sharing the same directory', () => {
+  const aliases = { workspaces: [...catalog.workspaces, { ...catalog.workspaces[1], id: 'local-alias', name: 'Another local workspace' }] };
+  expect(selectedWorkspace({ ...summary, directory: '/project' }, ['local-alias'], aliases)).toBe(true);
+});
