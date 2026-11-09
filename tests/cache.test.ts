@@ -26,7 +26,7 @@ async function fixture() {
 }
 async function complete(service: CoachService, input: OverviewInput) {
   let result = await service.overview(input);
-  await vi.waitFor(async () => { result = await service.overview(input); expect(result.status).toBe('complete'); }, { timeout: 5000, interval: 10 }); return result;
+  await vi.waitFor(async () => { result = await service.overview(input); expect(result.status).toBe('complete'); expect(result.cache.refreshing).not.toBe(true); }, { timeout: 5000, interval: 10 }); return result;
 }
 it('reuses 30→7→30 days across service restarts and imports only new/changed sessions next day', async () => {
   const f = await fixture(); let service = f.start();
@@ -45,7 +45,7 @@ it('reuses 30→7→30 days across service restarts and imports only new/changed
   // Details share the persistent report cache too.
   await service.analyze('fixture', 'db', 's0'); expect(f.adapter.load).toHaveBeenCalledTimes(32);
   service.dispose();
-  for (const file of await readdir(f.directory)) expect(gunzipSync(await readFile(join(f.directory, file))).toString()).not.toContain('PRIVATE PROMPT NOT TO PERSIST');
+  for (const file of (await readdir(f.directory)).filter(name => name.endsWith('.json.gz'))) expect(gunzipSync(await readFile(join(f.directory, file))).toString()).not.toContain('PRIVATE PROMPT NOT TO PERSIST');
 });
 it('origin changes reuse the same session import while excluding delegated work from human-led views', async () => {
   const f = await fixture(), service = f.start(), input = { adapterId: 'fixture', sourceId: 'db', to: f.now };
@@ -58,7 +58,7 @@ it('origin changes reuse the same session import while excluding delegated work 
 it('recovers a corrupt cache entry visibly and rewrites only that session', async () => {
   const f = await fixture(); let service = f.start(); const input = { adapterId: 'fixture', sourceId: 'db', to: f.now };
   await complete(service, input); service.dispose();
-  const [file] = await readdir(f.directory); await writeFile(join(f.directory, file), 'corrupt');
+  const [file] = (await readdir(f.directory)).filter(name => name.endsWith('.json.gz')); await writeFile(join(f.directory, file), 'corrupt');
   service = f.start(); const result = await complete(service, input);
   expect(result.cache).toMatchObject({ imported: 1, reused: 29, errors: 1 }); service.dispose();
 });
@@ -66,7 +66,7 @@ it('recovers a corrupt cache entry visibly and rewrites only that session', asyn
 it('upgrades an old aggregate-only cache entry once and persists its timestamped facts', async () => {
   const f = await fixture(); let service = f.start(); const input = { adapterId: 'fixture', sourceId: 'db', to: f.now };
   await complete(service, input); service.dispose();
-  const [file] = await readdir(f.directory), path = join(f.directory, file);
+  const [file] = (await readdir(f.directory)).filter(name => name.endsWith('.json.gz')), path = join(f.directory, file);
   const old = JSON.parse(gunzipSync(await readFile(path)).toString()); delete old.facts; delete old.factsVersion;
   await writeFile(path, gzipSync(JSON.stringify(old)));
   service = f.start(); expect((await complete(service, input)).cache).toMatchObject({ imported: 1, reused: 29, errors: 0 }); service.dispose();
@@ -74,4 +74,31 @@ it('upgrades an old aggregate-only cache entry once and persists its timestamped
   expect(upgraded.facts.messages[0]).toMatchObject({ timestamp: f.now, text: '', promptFeatures: { short: false } });
   service = f.start(); expect((await complete(service, { ...input, from: f.now - 7 * f.day })).cache).toMatchObject({ imported: 0, reused: 8 }); service.dispose();
   expect(f.adapter.load).toHaveBeenCalledTimes(31);
+});
+it('returns a persisted rolling-window snapshot immediately after reload, then validates updates in the background', async () => {
+  const f = await fixture(); let service = f.start();
+  const input = { adapterId: 'fixture', sourceId: 'db', from: f.now - 7 * f.day, to: f.now };
+  const first = await complete(service, input); service.dispose();
+  const history = vi.spyOn(f.adapter, 'history'); let release!: () => void;
+  const barrier = new Promise<void>(resolve => { release = resolve; });
+  const original = history.getMockImplementation()!;
+  history.mockImplementation(async (...args) => { await barrier; return original(...args); });
+  service = f.start();
+  const shifted = { ...input, from: input.from + 1, to: input.to + 1 };
+  const saved = await service.overview(shifted);
+  expect(saved.cache).toMatchObject({ refreshing: true, imported: 0, reused: first.analyzed, snapshotAt: expect.any(Number) });
+  expect(saved.metrics).toEqual(first.metrics);
+  expect(f.adapter.load).toHaveBeenCalledTimes(8);
+  history.mockImplementation(original); release();
+  const fresh = await complete(service, shifted);
+  expect(fresh.from).toBe(shifted.from); expect(fresh.cache.refreshing).not.toBe(true); expect(fresh.cache.imported).toBe(0);
+  service.dispose();
+});
+it('rebuilds a damaged aggregate view using existing session facts without reimporting bodies', async () => {
+  const f = await fixture(); let service = f.start(); const input = { adapterId: 'fixture', sourceId: 'db', to: f.now };
+  await complete(service, input); service.dispose();
+  const directory = join(f.directory, 'overviews-v1'), [file] = await readdir(directory);
+  await writeFile(join(directory, file), 'broken');
+  service = f.start(); const result = await complete(service, input);
+  expect(result.cache).toMatchObject({ imported: 0, reused: 30, errors: 1 }); expect(f.adapter.load).toHaveBeenCalledTimes(30); service.dispose();
 });

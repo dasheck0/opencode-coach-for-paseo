@@ -99,7 +99,9 @@ export class OpenCodeAdapter implements CoachAdapter {
         OR (NOT EXISTS (SELECT 1 FROM ${messageTable} m WHERE m.session_id=s.id) AND ${emptyBounds.join(' AND ')}))` : '',
         query.directory ? `s.directory = ${literal(query.directory)}` : ''].filter(Boolean);
       const activityWhere = `m.session_id=s.id${bounds.length ? ' AND ' + bounds.join(' AND ') : ''}`;
-      const rows = await db.query(`SELECT s.*,
+      const available = new Set((await db.query(`PRAGMA table_info(${table})`)).map(row => row.name));
+      const fields = ['id', 'title', 'slug', 'directory', 'parent_id', 'time_created', 'time_updated', 'tokens_input', 'tokens_output', 'cost'].filter(name => available.has(name)).map(name => `s.${name}`).join(', ');
+      const rows = await db.query(`SELECT ${fields},
         (SELECT MIN(m.time_created) FROM ${messageTable} m WHERE ${activityWhere}) AS activity_start,
         (SELECT MAX(m.time_created) FROM ${messageTable} m WHERE ${activityWhere}) AS activity_end FROM ${table} s ${conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''}
         ORDER BY COALESCE(activity_end, s.time_created) DESC, s.id DESC LIMIT ${literal(query.limit)} OFFSET ${literal(query.offset)}`);

@@ -1,7 +1,7 @@
 {
   "name": "opencode-coach-for-paseo",
   "private": true,
-  "version": "0.7.4",
+  "version": "0.8.0",
   "files": [
     "paseo-plugin.json",
     "OVERVIEW.md",
@@ -38,7 +38,8 @@
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^4.1.12",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "esbuild": "0.28.2"
   },
   "type": "module",
   "description": "Native Paseo plugin for local OpenCode V2 session analytics and evidence-based coaching",

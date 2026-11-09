@@ -71,3 +71,9 @@ it('reads sessions longer than the former 2000-message limit in bounded pages', 
   expect(result.messages[0].id).toBe('m0'); expect(result.messages.at(-1)?.id).toBe('m2000');
 });
 it('requires absolute explicit paths', async () => { await expect(new OpenCodeAdapter([]).discover(['relative.db'])).rejects.toThrow('absolute'); });
+it('reads minimal legacy metadata without assuming optional token or slug columns exist', async () => {
+  const f = fixture(false); f.session('minimal');
+  f.db.exec('ALTER TABLE session DROP COLUMN tokens_input; ALTER TABLE session DROP COLUMN tokens_output; ALTER TABLE session DROP COLUMN cost; ALTER TABLE session DROP COLUMN slug;');
+  const adapter = new OpenCodeAdapter([f.root]), [source] = await adapter.discover([]);
+  expect((await adapter.history(source, { limit: 10, offset: 0 }))[0]).toMatchObject({ id: 'minimal', inputTokens: null, outputTokens: null, cost: null });
+});

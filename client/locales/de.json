@@ -322,5 +322,13 @@
   "Session analysis": "Session-Analyse",
   "Some sessions overlap. Use the arrows beside the title to reach every session.": "Einige Sessions überlappen sich. Über die Pfeile neben dem Titel erreichst du jede einzelne.",
   "This session is outside the current history filters.": "Diese Session liegt außerhalb der aktuellen Verlaufsfilter.",
-  "Cell details": "Zellendetails"
+  "Cell details": "Zellendetails",
+  "Saved analysis · checking for updates…": "Gespeicherte Auswertung · prüfe auf Änderungen …",
+  "Saved analysis": "Gespeicherte Auswertung",
+  "Saved at": "Gespeichert am",
+  "Updates run locally in the background.": "Änderungen werden lokal im Hintergrund geprüft.",
+  "cached sessions ·": "Sessions aus dem Cache ·",
+  "new or updated sessions ·": "neue oder geänderte Sessions ·",
+  ". Updates run locally in the background.": ". Änderungen werden lokal im Hintergrund geprüft.",
+  "Data through": "Datenstand bis"
 }

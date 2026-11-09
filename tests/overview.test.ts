@@ -25,7 +25,7 @@ function fixture(count = 251) {
 }
 async function finish(f: ReturnType<typeof fixture>, input = f.input) {
   let result = await f.service.overview(input);
-  await vi.waitFor(async () => { result = await f.service.overview(input); expect(['complete', 'error']).toContain(result.status); }, { timeout: 5000, interval: 10 });
+  await vi.waitFor(async () => { result = await f.service.overview(input); expect(['complete', 'error']).toContain(result.status); expect(result.cache.refreshing).not.toBe(true); }, { timeout: 5000, interval: 10 });
   return result;
 }
 it('automatically analyzes every matching session beyond the first 50 and every adapter page', async () => {

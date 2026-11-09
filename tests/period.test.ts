@@ -49,7 +49,7 @@ it('reuses normalized facts across periods and service restarts, including detai
   const complete = async (from: number, to: number) => {
     const input = { adapterId: adapter.id, sourceId: source.id, from, to, origin: 'human' as const };
     let r = await service.overview(input);
-    await vi.waitFor(async () => { r = await service.overview(input); expect(r.status).toBe('complete'); }); return r;
+    await vi.waitFor(async () => { r = await service.overview(input); expect(r.status).toBe('complete'); expect(r.cache.refreshing).not.toBe(true); }); return r;
   };
   expect((await complete(1000, 1002)).metrics.humanPrompts).toBe(1);
   expect(load).toHaveBeenCalledTimes(1); service.dispose(); service = start();

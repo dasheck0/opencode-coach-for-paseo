@@ -322,5 +322,13 @@
   "Session analysis": "Session analysis",
   "Some sessions overlap. Use the arrows beside the title to reach every session.": "Some sessions overlap. Use the arrows beside the title to reach every session.",
   "This session is outside the current history filters.": "This session is outside the current history filters.",
-  "Cell details": "Cell details"
+  "Cell details": "Cell details",
+  "Saved analysis · checking for updates…": "Saved analysis · checking for updates…",
+  "Saved analysis": "Saved analysis",
+  "Saved at": "Saved at",
+  "Updates run locally in the background.": "Updates run locally in the background.",
+  "cached sessions ·": "cached sessions ·",
+  "new or updated sessions ·": "new or updated sessions ·",
+  ". Updates run locally in the background.": ". Updates run locally in the background.",
+  "Data through": "Data through"
 }

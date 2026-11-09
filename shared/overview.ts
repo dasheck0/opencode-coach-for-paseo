@@ -12,7 +12,7 @@ export const overviewSchema = z.object({
   generatedAt: z.number(), from: z.number().nullable(), to: z.number(), error: z.string().nullable(),
   matched: z.number(), analyzed: z.number(), failed: z.number(), incomplete: z.number(),
   mainSessions: z.number(), delegatedSessions: z.number(),
-  cache: z.object({ reused: z.number(), imported: z.number(), errors: z.number(), persistent: z.boolean() }),
+  cache: z.object({ reused: z.number(), imported: z.number(), errors: z.number(), persistent: z.boolean(), snapshotAt: z.number().optional(), refreshing: z.boolean().optional() }),
   metrics: z.object({ humanPrompts: z.number(), aiPrompts: z.number().default(0), assistantCalls: z.number(), toolCalls: z.number(), toolErrors: z.number(),
     edits: z.number(), editingSessions: z.number(), verifiedEditingSessions: z.number(),
     inputTokens: z.number().nullable(), outputTokens: z.number().nullable(), cacheRead: z.number().nullable(),

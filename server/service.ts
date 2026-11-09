@@ -1,6 +1,6 @@
 import { workspaceTimelines } from '../shared/session-groups';
 import type { Source, HistoryQuery, SessionSummary } from '../shared/model';
-import type { OverviewInput } from '../shared/overview';
+import type { OverviewInput, Overview } from '../shared/overview';
 import type { Origin } from '../shared/preferences';
 import type { WorkspaceCatalog } from '../shared/workspaces';
 import { OverviewAccumulator } from './overview';
@@ -13,7 +13,7 @@ import type { AdapterRegistry, CoachAdapter } from './adapters/types';
 export interface Preferences { disabled: string[]; hidden: string[]; selected: string; paths: Record<string, string[]> }
 const matchesOrigin = (s: SessionSummary, origin: Origin = 'all') => origin === 'all' || (origin === 'human' ? !s.parentId : !!s.parentId);
 export class CoachService {
-  private readonly jobs = new Map<string, { accumulator: OverviewAccumulator; touched: number }>();
+  private readonly jobs = new Map<string, { accumulator: OverviewAccumulator; touched: number; saved?: Overview }>();
   private readonly inFlight = new Map<string, Promise<ReportBundle>>();
   private readonly memory = new Map<string, ReportBundle>();
   private closed = false;
@@ -88,16 +88,32 @@ export class CoachService {
     return { sessions, total, totalSessions: matched.length, offset: pageOffset, hasMore: pageOffset + query.limit < total };
   }
 
+  private overviewResult(entry: { accumulator: OverviewAccumulator; saved?: Overview }) {
+    const fresh = entry.accumulator.snapshot();
+    if (!entry.saved || fresh.status === 'complete') return fresh;
+    return { ...entry.saved, error: fresh.error, cache: { ...entry.saved.cache, reused: entry.saved.analyzed, imported: 0, errors: fresh.cache.errors,
+      snapshotAt: entry.saved.generatedAt, refreshing: fresh.status !== 'error' } };
+  }
   async overview(input: OverviewInput) {
     const { adapter, source } = await this.resolve(input.adapterId, input.sourceId), catalog = await this.projectSelection(input.projectIds);
     const origin = input.origin ?? 'all';
     const key = JSON.stringify([input.adapterId, input.sourceId, input.from ?? null, input.to, input.directory ?? '', [...(input.projectIds ?? [])].sort(), origin, catalog]);
     const existing = this.jobs.get(key);
-    if (existing) { existing.touched = Date.now(); return existing.accumulator.snapshot(); }
+    if (existing) { existing.touched = Date.now(); return this.overviewResult(existing); }
     for (const [id, entry] of this.jobs) if (['complete', 'error'].includes(entry.accumulator.result.status) && (this.jobs.size >= 6 || Date.now() - entry.touched > 900000)) this.jobs.delete(id);
     if (this.jobs.size >= 6) throw new Error('Overview analyses are already running. Wait for one to finish.');
+    // Rolling presets share a saved view even when a reload moves the cutoff by a few seconds.
+    // Its original timestamps remain visible and fresh results replace it after validation.
+    const duration = input.from === undefined ? 'all' : input.to - input.from;
+    const window = duration === 'all' || [7, 30, 90].some(days => duration === days * 86400000) ? duration : [input.from, input.to];
+    const savedKey = JSON.stringify([1, ANALYSIS_VERSION, input.adapterId, input.sourceId, window, input.directory ?? '', [...(input.projectIds ?? [])].sort(), origin]);
+    let saved: Overview | undefined, savedReadFailed = false;
+    try { saved = await this.cache.getOverview?.(savedKey); } catch { savedReadFailed = true; }
+    const concurrent = this.jobs.get(key); if (concurrent) return this.overviewResult(concurrent);
     const accumulator = new OverviewAccumulator(input); accumulator.result.cache.persistent = this.cache.persistent;
-    this.jobs.set(key, { accumulator, touched: Date.now() });
+    if (savedReadFailed) accumulator.result.cache.errors++;
+    const entry = { accumulator, touched: Date.now(), saved };
+    this.jobs.set(key, entry);
     const assertEnabled = async () => {
       if (this.closed) throw new Error('Coach stopped');
       if ((await this.readPreferences()).disabled.includes(adapter.id)) throw new Error('Provider disabled; analysis stopped.');
@@ -123,10 +139,11 @@ export class CoachService {
         } catch { accumulator.result.failed++; }
         await setImmediate();
       }
+      try { await this.cache.putOverview?.(savedKey, { ...accumulator.snapshot(), status: 'complete' }); } catch { accumulator.result.cache.errors++; }
       accumulator.result.status = 'complete';
     };
     void run().catch(error => { accumulator.result.status = 'error'; accumulator.result.error = error instanceof Error ? error.message : 'Overview analysis failed'; });
-    return accumulator.snapshot();
+    return this.overviewResult(entry);
   }
   async analyze(adapterId: string, sourceId: string, sessionId: string, origin: Origin = 'all', period: Period = {}) {
     const { adapter, source } = await this.resolve(adapterId, sourceId), catalog = await this.readWorkspaces();

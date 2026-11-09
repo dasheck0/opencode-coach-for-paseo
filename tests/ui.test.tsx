@@ -285,3 +285,15 @@ it('opens session analysis below its action inside only the matching workspace c
   expect(analysis.parent?.findByProps({ accessibilityLabel: 'Analyze Fixture session' })).toBeTruthy();
   expect(mocks.scrollTo).toHaveBeenLastCalledWith({ y: 480, animated: false });
 });
+it('switches rolling windows with a stable cutoff and reuses completed client queries instead of restarting them', async () => {
+  setup(); mocks.saveView.mockImplementation(async values => { mocks.view = values as ViewPreferences; return true; });
+  const r = await render(Dashboard, props(false, false));
+  const cutoff = mocks.overview.mock.calls[0][0].to;
+  for (const days of [7, 30, 7]) {
+    await act(async () => r.root.findByProps({ accessibilityLabel: `${days} days` }).props.onPress());
+    await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Dashboard' }).props.onPress());
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  }
+  expect(mocks.overview.mock.calls).toHaveLength(2);
+  expect(mocks.overview.mock.calls.every(([input]) => input.to === cutoff)).toBe(true);
+});

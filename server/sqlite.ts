@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { stat } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 const run = promisify(execFile);
+let driverLogged = false;
 export type Row = Record<string, unknown>;
 export function literal(value: string | number): string {
   if (typeof value === 'number') {
@@ -19,10 +20,11 @@ export async function openDatabase(path: string, forceCli = false) {
   let native: Database | undefined;
   if (!forceCli) {
     try {
-      const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite');
+      const { DatabaseSync } = createRequire(path)('node:sqlite');
       native = new DatabaseSync(path, { readOnly: true });
-    } catch { /* Electron may omit node:sqlite. The system CLI is a read-only fallback. */ }
+    } catch (error) { if (!driverLogged) console.info('[Coach SQLite] Native unavailable:', error instanceof Error ? error.message : String(error)); }
   }
+  if (!driverLogged) { console.info('[Coach SQLite] Driver:', native ? 'native' : 'CLI'); driverLogged = true; }
   return {
     async query(sql: string): Promise<Row[]> {
       if (native) return native.prepare(sql).all();

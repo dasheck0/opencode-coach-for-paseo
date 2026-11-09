@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.7.4
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.8.0
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -130,3 +130,5 @@ Session inspectors no longer have a selection dropdown. Analyze expands the repo
 Timeline main-session segments are blue and delegated-session segments are green. Each workspace track has a matching legend; the inline inspector also labels the session origin in text. Category colors remain consistent across host themes while surrounding text and surfaces use Paseo theme tokens.
 
 Hour-grid cells show a compact hover/focus/click popover containing only the weekday, UTC hour interval and session count, including zero-session cells. Counts come from the existing filtered overview.
+
+Completed overview snapshots are stored alongside session facts. Reopening the plugin can display the saved overview immediately, labeled with its capture time, while a local background check updates it. Switching 7/30/90-day presets reuses completed client queries at a stable cutoff. A later preset click advances the cutoff once it is at least one minute old; Refresh advances it immediately. The current data cutoff is shown in the status area. The native SQLite driver works in Paseo's CommonJS bundle, avoiding a separate CLI process for every message block. Existing session cache entries remain valid; UI changes do not force a full import.
