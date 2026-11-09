@@ -103,3 +103,10 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - Native component tests verify page 3 navigation, selected page state, first/last disabled states, 1–5 and 11–12 of 12 workspace ranges, and saved page-size changes. Existing drill-down and pagination restoration tests now use workspace offsets.
 - Installed plugin reloaded successfully and reported running. Live RPC check found 4 workspaces and 88 sessions in a fixed seven-day range. Iterated all four one-workspace pages, verified every group was complete, totals stayed consistent, and no sessions were missing or duplicated. A stale offset clamped to the only five-workspace page.
 - Workspace groups are shared between server pagination and client rendering. Default page size is 5 workspaces, with saved options 5/10/25. Counts require only session metadata and do not trigger report imports or model calls.
+
+## v0.7.1: separate workspace cards and session counts (2026-11-09)
+
+- TypeScript and 76 tests passed locally. Extended the multi-workspace component regression to verify separate workspace cards, one track in each, and per-card counts of two and one sessions.
+- Each workspace now uses its own bordered Panel with a session-count badge beside the project/workspace title. The shared wrapper and divider-only presentation were removed. Counts reflect the current period and filters; workspace pagination supplies complete groups.
+- Panel titles can shrink/wrap beside metadata so long workspace names do not push the count out of compact layouts. No session analysis/import or cache behavior changed.
+- Installed plugin reloaded and reported running. Native Paseo Timeline showed four distinct workspace headings with session-count metadata of 65, 19, 2 and 2 (88 sessions total).

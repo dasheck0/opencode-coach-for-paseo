@@ -314,5 +314,7 @@
   "Workspaces per page": "Workspaces per page",
   "{v0}–{v1} of {v2} workspaces": "{v0}–{v1} of {v2} workspaces",
   "sessions in": "sessions in",
-  "workspaces on this page. Total matching sessions:": "workspaces on this page. Total matching sessions:"
+  "workspaces on this page. Total matching sessions:": "workspaces on this page. Total matching sessions:",
+  "Session count": "Session count",
+  "Session": "Session"
 }

@@ -239,6 +239,13 @@ it('shows one shared track per workspace with separate session selectors', async
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
     expect(r.root.findAllByProps({ accessibilityLabel: 'Session activity track' })).toHaveLength(2);
   });
+  expect(r.root.findAllByType('Text' as never).filter(n => n.props.accessibilityLabel === 'Session count: 2')).toHaveLength(1);
+  expect(r.root.findAllByType('Text' as never).filter(n => n.props.accessibilityLabel === 'Session count: 1')).toHaveLength(1);
+  const one = r.root.findByProps({ title: 'Project · One' });
+  const two = r.root.findByProps({ title: 'Project · Two' });
+  expect(one.findAllByProps({ accessibilityLabel: 'Session activity track' })).toHaveLength(1);
+  expect(two.findAllByProps({ accessibilityLabel: 'Session activity track' })).toHaveLength(1);
+  expect(one.findAllByType('Text' as never).filter(n => n.props.accessibilityLabel === 'Session count: 2')).toHaveLength(1);
   const selectors = r.root.findAllByProps({ label: 'Selected session' });
   expect(selectors.map(s => s.props.options.map((o: { value: string }) => o.value))).toEqual([['a', 'b'], ['c']]);
 });
