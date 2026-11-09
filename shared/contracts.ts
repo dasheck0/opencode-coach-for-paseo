@@ -1,5 +1,6 @@
 import { defineRpc, defineSettings } from '@getpaseo/plugin';
 import { z } from 'zod';
+import { overviewInputSchema, overviewSchema } from './overview';
 import { reportSchema, sourceSchema, summarySchema } from './model';
 
 // New adapter IDs require no changes here or in the UI.
@@ -26,3 +27,5 @@ output: z.object({ sessions: z.array(summarySchema), hasMore: z.boolean() }) });
 export const analyzeRpc = defineRpc({ name: 'coach.analyze', input: z.object({
   adapterId: z.string(), sourceId: z.string(), sessionId: z.string().min(1).max(300),
 }), output: reportSchema });
+
+export const overviewRpc = defineRpc({ name: 'coach.overview', input: overviewInputSchema, output: overviewSchema });

@@ -17,7 +17,7 @@ This excerpt illustrates the contract only; it is not a stub to register as a wo
 
 `discover(paths)` returns stable opaque source IDs, user-facing labels, absolute paths, and a format identifier. An empty explicit path list means automatic discovery. Avoid reading conversation payloads during discovery. Report inaccessible explicit paths and unsupported formats as errors.
 
-`history(source, query)` returns normalized `SessionSummary` entries ordered by creation time descending, then ID descending. Apply the inclusive `from`/`to` timestamps (milliseconds), exact directory filter, limit and offset. The service asks for `limit + 1` to determine whether the next page exists. Keep unknown cost and token values null.
+`history(source, query)` returns normalized `SessionSummary` entries ordered by creation time descending, then ID descending. Apply the inclusive `from`/`to` timestamps (milliseconds), exact directory filter, limit and offset. The session browser asks for `limit + 1` to determine whether the next page exists. The overview independently enumerates every page in batches of 200, then normalizes and aggregates every matching session. Return at most the requested limit and honor the offset. No overview-specific adapter method is required. Keep unknown cost and token values null.
 
 `load(source, sessionId)` returns one normalized `Session`. Normalize every tool call into a stable ID, name, status, and optional command/file. Map provider-specific statuses to `completed` or `error` when applicable. Preserve ordering and message IDs for evidence. Human messages have role `user` and synthetic=false; mark generated prompts synthetic. Set a parent session ID for delegated work. Report skipped records and truncation in warnings.
 

@@ -3,7 +3,7 @@ import type { Finding, Message, Report, Session } from '../shared/model';
 const EDIT = /^(write|edit|create|patch|apply_patch|multiedit)$/i;
 // Evidence means a command was issued. It does not establish that a test passed.
 export function isVerification(command = '') {
-  return /(?:^|[\s;&|])(?:npm\s+(?:run\s+)?(?:test|typecheck|lint|build)|pnpm\s+(?:run\s+)?(?:test|typecheck|lint|build)|yarn\s+(?:test|typecheck|lint|build)|(?:npx\s+)?(?:vitest|jest|tsc|eslint|pytest)|python(?:3)?\s+-m\s+(?:pytest|unittest)|go\s+test|cargo\s+test|dotnet\s+test|mvn\s+test)(?:\s|$)/i.test(command);
+  return /(?:^|[\s;&|])(?:npm\s+(?:run\s+)?(?:test|typecheck|lint|build|check)|pnpm\s+(?:run\s+)?(?:test|typecheck|lint|build|check)|yarn\s+(?:test|typecheck|lint|build|check)|(?:npx\s+)?(?:vitest|jest|tsc|eslint|pytest)|python(?:3)?\s+-m\s+(?:pytest|unittest)|go\s+test|cargo\s+test|dotnet\s+test|mvn\s+test)(?:\s|$)/i.test(command);
 }
 const total = (messages: Message[], key: 'inputTokens' | 'outputTokens' | 'cacheRead' | 'cacheWrite' | 'cost') => {
   const values = messages.map(m => m[key]).filter((n): n is number => n !== null);

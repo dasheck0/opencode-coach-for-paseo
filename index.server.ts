@@ -1,5 +1,5 @@
 import type { PluginServerContext } from '@getpaseo/plugin/server';
-import { preferences, catalogRpc, historyRpc, analyzeRpc } from './shared/contracts';
+import { preferences, catalogRpc, historyRpc, analyzeRpc, overviewRpc } from './shared/contracts';
 import { CoachService } from './server/service';
 import { createRegistry } from './server/registry';
 export default function contribute(server: PluginServerContext) {
@@ -12,5 +12,6 @@ export default function contribute(server: PluginServerContext) {
   server.handle(catalogRpc, () => service.catalog());
   server.handle(historyRpc, ({ adapterId, sourceId, ...query }) => service.history(adapterId, sourceId, query));
   server.handle(analyzeRpc, ({ adapterId, sourceId, sessionId }) => service.analyze(adapterId, sourceId, sessionId));
-  return () => {};
+  server.handle(overviewRpc, input => service.overview(input));
+  return () => service.dispose();
 }

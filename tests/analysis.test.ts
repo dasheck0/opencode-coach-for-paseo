@@ -14,7 +14,7 @@ it('distinguishes verification commands from passing results and detects later e
 });
 it('does not count failed edits as successful edits', () => { expect(analyze(session([assistant('a', [{ ...edit, status: 'error' }])])).metrics.edits).toBe(0); });
 it('recognizes common test runners and ignores unrelated commands', () => {
-  for (const command of ['npm run typecheck', 'npx vitest run', 'pytest -q', 'go test ./...', 'cargo test', 'pnpm test']) expect(isVerification(command)).toBe(true);
+  for (const command of ['npm run typecheck', 'npx vitest run', 'pytest -q', 'go test ./...', 'cargo test', 'pnpm test', 'npm run check', 'pnpm check']) expect(isVerification(command)).toBe(true);
   for (const command of ['echo hello', 'cat test.log', 'git status']) expect(isVerification(command)).toBe(false);
 });
 it('finds identical retry loops and context pressure with message evidence', () => {

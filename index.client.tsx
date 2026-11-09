@@ -9,7 +9,7 @@ export default function contribute(client: PluginClientContext) {
   client.addScreen({ id: 'coach', title: 'OpenCode Coach', Component: Dashboard });
   client.addSidebarHeaderItem({ id: 'coach', title: 'OpenCode Coach', Component: CoachItem });
   client.addSettingsScreen({ id: 'providers', title: 'Providers', icon: 'Settings', Component: CoachSettings });
-  client.addCommandCenterItem({ id: 'open-coach', title: 'OpenCode Coach: Open history', icon: 'ChartNoAxesCombined',
+  client.addCommandCenterItem({ id: 'open-coach', title: 'OpenCode Coach: Open overview', icon: 'ChartNoAxesCombined',
     context: 'global', onSelect({ openScreen }) { openScreen({ screenId: 'coach' }); } });
   return () => {};
 }

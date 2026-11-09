@@ -20,3 +20,12 @@ Initial implementation checked on 2026-11-09 with Paseo daemon/app 0.15.3 on mac
 Not yet verified on a physical iOS/Android device, on Windows/Linux hosts, or by visually switching the live app theme. Compact/dark coverage is component-level. Provider setting mutations are exercised in component/service tests; live settings conflict/reconnect behavior relies on the Paseo SDK contract. Claude Code parsing is not implemented.
 
 GitHub Actions runs the same typecheck and tests from a clean dependency install on Node 22 and Node 24. Consult the repository Actions page for the actual remote run result rather than assuming a local pass proves CI passed.
+
+
+## Version 0.2: automatic cross-session overview
+
+- Strict typecheck and 35 tests pass across five files. New tests cover all-session pagination (251 sessions across multiple pages), automatic insights without session clicks, exact/date filters, unchanged-report reuse and timestamp invalidation, overlapping-job read deduplication, provider deactivation during a job, read failures, truncated reports, duplicate findings, rate normalization, unknown usage, and non-advancing adapters.
+- The real Paseo app displayed the automatic overview with ranked priorities, counts, provisional progress, period comparisons, and activity, while the session browser remained closed.
+- The default overview enumerated 665 matching sessions in a real local 30-day window. The exact completed-run result is recorded separately below after verification.
+- Added support for common `npm run check` / `pnpm check` verification commands; a recognized command still does not prove passing results.
+- Native compact/dark rendering remains covered by component tests; physical-device verification is still outstanding.
