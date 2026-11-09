@@ -57,6 +57,7 @@ function DashboardContent(props: PluginScreenProps) {
     scroll.current?.scrollTo({ y: 0, animated: false });
   };
   useEffect(() => { if (restoreY.current !== null) scroll.current?.scrollTo({ y: restoreY.current, animated: false }); }, [page, sessionId, offset]);
+  const historyPageSize = view.status === 'ready' ? (view.values.historyPageSize ?? 5) : 5;
   const days = view.status === 'ready' ? view.values.days : 30;
   const since = days ? until - days * 86400000 : 0;
   const legacyIds = view.status === 'ready' ? view.values.workspaceIds : [];
@@ -74,9 +75,12 @@ function DashboardContent(props: PluginScreenProps) {
   const adapter = providers.find(a => a.id === selected);
   const source = adapter?.sources.find(s => s.id === sourceId) ?? adapter?.sources[0];
   useEffect(() => { setSourceId(''); setSessionId(''); setOffset(0); setBackStack([]); }, [selected]);
-  useEffect(() => { setSessionId(''); setOffset(0); setBackStack([]); }, [source?.id, days, filterKey]);
-  const history = useQuery({ queryKey: ['coach', 'history', selected, source?.id, since, until, filterKey, origin, offset],
-    queryFn: () => historyCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin, limit: 50, offset }), enabled: !!source && filterReady && view.status === 'ready' && page === 'timeline' });
+  useEffect(() => { setSessionId(''); setOffset(0); setBackStack([]); }, [source?.id, days, filterKey, historyPageSize]);
+  const historyBase = ['coach', 'history', selected, source?.id, since, until, filterKey, origin];
+  const history = useQuery({ queryKey: [...historyBase, historyPageSize, offset],
+    placeholderData: (previous, query) => JSON.stringify(query?.queryKey.slice(0, -2)) === JSON.stringify(historyBase) ? previous : undefined,
+    queryFn: () => historyCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin, limit: historyPageSize, offset, groupBy: 'workspace' }), enabled: !!source && filterReady && view.status === 'ready' && page === 'timeline' });
+  useEffect(() => { if (history.data && !history.isPlaceholderData && history.data.offset !== offset) setOffset(history.data.offset); }, [history.data, history.isPlaceholderData]);
   const overview = useQuery({ queryKey: ['coach', 'overview', selected, source?.id, since, until, filterKey, origin],
     queryFn: () => overviewCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin }), enabled: !!source && filterReady && view.status === 'ready', retry: false,
     refetchInterval: query => query.state.data?.status === 'complete' || query.state.data?.status === 'error' ? false : 1500 });
@@ -119,7 +123,7 @@ function DashboardContent(props: PluginScreenProps) {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{[7, 30, 90, 0].map(n => <Action key={n} {...props} label={n ? `${n} days` : 'All history'} selected={n === days} onPress={() => { const now = Date.now(); saveView({ days: n as 0 | 7 | 30 | 90 }); setUntil(now); }} />)}<Action {...props} label="Refresh" onPress={() => { setUntil(Date.now()); void catalog.refetch(); if (sessionId) void report.refetch(); }} /></View>
       </View>
       {layout.compact && providerFilters}
-      {page !== 'settings' && <SettingsSelect label={t('Session origin')} hint={t('Main sessions reflect your prompting; subagent sessions reflect delegated work. Synthetic prompts never count as human prompts.')} value={origin} disabled={view.status !== 'ready' || view.saving} options={[{ label: t('Main sessions (human-led)'), value: 'human' }, { label: t('Subagent sessions (AI-led)'), value: 'ai' }, { label: t('All sessions'), value: 'all' }]} onValueChange={value => { if (view.status === 'ready') { setSessionId(''); saveView({ origins: { ...view.values.origins, [page]: value as 'human' | 'ai' | 'all' } }); } }} />}
+      {page !== 'settings' && <SettingsSelect label={t('Session origin')} hint={t('Main sessions reflect your prompting; subagent sessions reflect delegated work. Synthetic prompts never count as human prompts.')} value={origin} disabled={view.status !== 'ready' || view.saving} options={[{ label: t('Main sessions (human-led)'), value: 'human' }, { label: t('Subagent sessions (AI-led)'), value: 'ai' }, { label: t('All sessions'), value: 'all' }]} onValueChange={value => { if (view.status === 'ready') { setSessionId(''); setOffset(0); saveView({ origins: { ...view.values.origins, [page]: value as 'human' | 'ai' | 'all' } }); } }} />}
       {view.saveError && <Text style={{ color: c.statusDanger }}>{String(view.saveError)}</Text>}
       {settings.status !== 'ready' && <Text style={{ color: c.foregroundMuted }}>{settings.status === 'loading' ? 'Loading settings…' : 'Provider settings unavailable. Open Providers to recover.'}</Text>}
       {settings.saveError && <Text style={{ color: c.statusDanger }}>{String(settings.saveError)}</Text>}
@@ -136,8 +140,8 @@ function DashboardContent(props: PluginScreenProps) {
         {page === 'patterns' && overviewProps && <PatternsPage {...overviewProps} tab={patternsTab} onTabChange={setPatternsTab} />}
         {page === 'anti-patterns' && overviewProps && <AntiPatternsPage {...overviewProps} />}
         {page === 'context' && overviewProps && <ContextPage {...overviewProps} />}
-        {page === 'timeline' && source && <TimelinePage {...props} from={days ? since : undefined} to={until} sessions={history.data?.sessions ?? []} sessionId={sessionId} onSelect={openSession} offset={offset} onOffset={setOffset} hasMore={!!history.data?.hasMore}
-          loading={history.isPending} error={history.error?.message} report={report.data} reportLoading={!!sessionId && report.isPending} reportError={report.error?.message} />}
+        {page === 'timeline' && source && <TimelinePage {...props} from={days ? since : undefined} to={until} sessions={history.data?.sessions ?? []} sessionId={sessionId} onSelect={openSession} offset={offset} onOffset={value => { setOffset(value); setSessionId(''); if (sessionId && backStack.at(-1)?.page === 'timeline' && !backStack.at(-1)?.sessionId) setBackStack(stack => stack.slice(0, -1)); restoreY.current = 0; scrollY.current = 0; scroll.current?.scrollTo({ y: 0, animated: false }); }} total={history.data?.total ?? 0} totalSessions={history.data?.totalSessions ?? 0} pageSize={historyPageSize} onPageSize={size => { setOffset(0); saveView({ historyPageSize: size as 5 | 10 | 25 }); }}
+          loading={history.isFetching} error={history.error?.message} report={report.data} reportLoading={!!sessionId && report.isPending} reportError={report.error?.message} />}
       </>}
       {source && <Text selectable numberOfLines={1} style={{ color: c.foregroundMuted, fontSize: 10 }}>Source: {source.path} · Message activity defines the selected period; metrics count only messages within it.</Text>}
     </ScrollView>

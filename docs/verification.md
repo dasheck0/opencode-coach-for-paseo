@@ -96,3 +96,10 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - TypeScript and 73 tests passed locally. Added grouping by project/workspace identity with directory fallback, retaining multiple sessions in one workspace and separating identical names across workspaces/projects. Component integration verifies two workspaces yield exactly two tracks with separate session choices.
 - Overlap layout uses one lane only. Short intervals render above long intervals; all sessions remain reachable via the workspace selector. All workspace tracks use common period bounds and date/time markers.
 - Plugin reload reported running. Native interaction was deferred when Paseo reported concurrent user interaction; the changed grouping and single-track behavior are covered by component/model tests.
+
+## v0.7.0: conventional numbered workspace pagination (2026-11-09)
+
+- TypeScript and 76 local tests passed. Added page-number/ellipsis cases and a 257-session, 12-workspace service fixture spanning multiple adapter pages: pages contain 5/5/2 complete workspace groups, totals are exact, out-of-range offsets clamp, origin filtering applies before totals, and no session bodies are loaded.
+- Native component tests verify page 3 navigation, selected page state, first/last disabled states, 1–5 and 11–12 of 12 workspace ranges, and saved page-size changes. Existing drill-down and pagination restoration tests now use workspace offsets.
+- Installed plugin reloaded successfully and reported running. Live RPC check found 4 workspaces and 88 sessions in a fixed seven-day range. Iterated all four one-workspace pages, verified every group was complete, totals stayed consistent, and no sessions were missing or duplicated. A stale offset clamped to the only five-workspace page.
+- Workspace groups are shared between server pagination and client rendering. Default page size is 5 workspaces, with saved options 5/10/25. Counts require only session metadata and do not trigger report imports or model calls.

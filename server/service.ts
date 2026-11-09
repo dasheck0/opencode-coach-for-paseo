@@ -1,3 +1,4 @@
+import { workspaceTimelines } from '../shared/session-groups';
 import type { Source, HistoryQuery, SessionSummary } from '../shared/model';
 import type { OverviewInput } from '../shared/overview';
 import type { Origin } from '../shared/preferences';
@@ -69,19 +70,22 @@ export class CoachService {
   }
   async history(adapterId: string, sourceId: string, query: HistoryQuery) {
     const { adapter, source } = await this.resolve(adapterId, sourceId), catalog = await this.projectSelection(query.projectIds);
-    if (!query.projectIds?.length && (!query.origin || query.origin === 'all')) {
-      const rows = await adapter.history(source, { ...query, limit: query.limit + 1 });
-      return { sessions: rows.slice(0, query.limit).map(s => enrichSummary(s, catalog)), hasMore: rows.length > query.limit };
-    }
-    const matched: SessionSummary[] = []; let offset = 0;
-    while (matched.length <= query.offset + query.limit) {
+    const matched: SessionSummary[] = [], seen = new Set<string>(); let offset = 0;
+    while (true) {
       const page = await adapter.history(source, { from: query.from, to: query.to, directory: query.directory, limit: 200, offset });
-      matched.push(...page.filter(s => matchesOrigin(s, query.origin) && selectedProject(s, query.projectIds, catalog)));
+      const fresh = page.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
+      if (page.length && !fresh.length) throw new Error('Provider pagination did not advance. Refresh the overview.');
+      matched.push(...fresh.filter(s => matchesOrigin(s, query.origin) && selectedProject(s, query.projectIds, catalog)).map(s => enrichSummary(s, catalog)));
       if (page.length < 200) break;
-      offset += page.length;
+      offset += page.length; await setImmediate();
     }
-    return { sessions: matched.slice(query.offset, query.offset + query.limit).map(s => enrichSummary(s, catalog)), hasMore: matched.length > query.offset + query.limit };
+    const groups = query.groupBy === 'workspace' ? workspaceTimelines(matched) : undefined;
+    const total = groups?.length ?? matched.length;
+    const pageOffset = Math.min(query.offset, Math.max(0, Math.ceil(total / query.limit) - 1) * query.limit);
+    const sessions = groups ? groups.slice(pageOffset, pageOffset + query.limit).flatMap(g => g.sessions) : matched.slice(pageOffset, pageOffset + query.limit);
+    return { sessions, total, totalSessions: matched.length, offset: pageOffset, hasMore: pageOffset + query.limit < total };
   }
+
   async overview(input: OverviewInput) {
     const { adapter, source } = await this.resolve(input.adapterId, input.sourceId), catalog = await this.projectSelection(input.projectIds);
     const origin = input.origin ?? 'all';

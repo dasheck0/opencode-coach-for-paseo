@@ -18,12 +18,3 @@ export function timelineTicks(start: number, end: number, count: number) {
   return Array.from({ length: count }, (_, i) => start + (end - start) * i / (count - 1));
 }
 
-export function workspaceTimelines(sessions: SessionSummary[]) {
-  const groups = new Map<string, { key: string; projectName?: string; workspaceName: string; sessions: SessionSummary[] }>();
-  for (const session of sessions) {
-    const key = JSON.stringify([session.projectId ?? session.projectName ?? '', session.workspaceId ?? session.directory]);
-    const group = groups.get(key) ?? { key, projectName: session.projectName, workspaceName: session.workspaceName || session.directory, sessions: [] };
-    group.sessions.push(session); groups.set(key, group);
-  }
-  return [...groups.values()];
-}

@@ -10,7 +10,7 @@ function fixture() {
 }
 it('a third-party adapter automatically appears and resolves through the same service', async () => {
   const { adapter, service } = fixture(); expect((await service.catalog()).adapters[0].id).toBe('claude-code');
-  await service.history(adapter.id, source.id, { limit: 50, offset: 0 }); expect(adapter.history).toHaveBeenCalledWith(source, { limit: 51, offset: 0 });
+  await service.history(adapter.id, source.id, { limit: 50, offset: 0 }); expect(adapter.history).toHaveBeenCalledWith(source, { from: undefined, to: undefined, directory: undefined, limit: 200, offset: 0 });
 });
 it('disabled providers cannot be read and are not probed by discovery', async () => {
   const { adapter, prefs, service } = fixture(); prefs.disabled.push(adapter.id);

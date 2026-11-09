@@ -307,5 +307,12 @@
   "Hover or select a segment to inspect it below. Open analysis separately. Spans include idle time; very short sessions have a minimum visible width.": "Hover or select a segment to inspect it below. Open analysis separately. Spans include idle time; very short sessions have a minimum visible width.",
   "Some sessions overlap. Use the session selector to reach every session.": "Some sessions overlap. Use the session selector to reach every session.",
   "Showing": "Showing",
-  "sessions on this history page. The shared axis spans the selected period in UTC.": "sessions on this history page. The shared axis spans the selected period in UTC."
+  "sessions on this history page. The shared axis spans the selected period in UTC.": "sessions on this history page. The shared axis spans the selected period in UTC.",
+  "First": "First",
+  "Last": "Last",
+  "Page": "Page",
+  "Workspaces per page": "Workspaces per page",
+  "{v0}–{v1} of {v2} workspaces": "{v0}–{v1} of {v2} workspaces",
+  "sessions in": "sessions in",
+  "workspaces on this page. Total matching sessions:": "workspaces on this page. Total matching sessions:"
 }

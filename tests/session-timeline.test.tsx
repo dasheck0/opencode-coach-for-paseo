@@ -1,10 +1,11 @@
+import { workspaceTimelines } from '../shared/session-groups';
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { createElement } from 'react';
 vi.mock('react-native', () => ({ View: 'View', Text: 'Text', Pressable: 'Pressable' }));
 vi.mock('@getpaseo/plugin/client/ui', () => ({ SettingsSelect: 'SettingsSelect' }));
 import { SessionTimeline } from '../client/session-timeline';
-import { timelineLayout, timelineTicks, workspaceTimelines } from '../client/session-timeline-model';
+import { timelineLayout, timelineTicks } from '../client/session-timeline-model';
 import { I18nProvider } from '../client/i18n';
 import type { SessionSummary } from '../shared/model';
 import type { Surface } from '../client/ui';

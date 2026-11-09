@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.6.1
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.7.0
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -20,7 +20,7 @@ The daemon needs `node:sqlite` (Node 22.13+), or a `sqlite3` executable (3.25+) 
 - OpenCode V2: `session_v2` metadata and ordered `session_message` inline content.
 - Older OpenCode SQLite: `session`, `message`, and `part` tables.
 - Automatic source discovery, configurable paths, and source selection.
-- Historical date windows, Paseo project multi-selection, and 50-session pagination.
+- Historical date windows, Paseo project multi-selection, and numbered workspace pagination.
 - An automatic overview across **every matching session in the selected source and period**, independent of the paginated session browser.
 - Ranked coaching priorities with affected-session counts and percentages, practical next steps, and optional evidence links.
 - Earlier/later period rate comparisons, a 14-day activity chart, and total tool, prompt, token, and recorded cost metrics.
@@ -120,3 +120,5 @@ Date windows use **message activity**, so a session started weeks ago is include
 A clickable breadcrumb above the page header tracks your drill-down path. Select any earlier step to restore its view, scroll position, Patterns tab and session-list page. The current step is plain highlighted text. Selecting a main section in the sidebar (or compact navigation) starts a new root and clears the previous branch. Only in-content drill-down links extend the path; sibling session details replace one another. The path belongs to the open Coach screen and also resets when the provider, source, project selection or period changes; it is not persisted across plugin reloads. Shared filters remain in place while navigating.
 
 The reusable `SessionTimeline` component accepts sessions, optional `from`/`to` bounds, a selected session ID and an `onOpenSession` callback. It has no data-fetching or pagination dependency. Hover, keyboard focus and click inspect a segment inline; clicking **Analyze** opens its report. Sessions on the current history page are grouped by workspace. Each workspace has exactly one continuous UTC track, including spans across midnight, and all workspace tracks use identical time bounds. Overlapping sessions share the same track; shorter spans are layered above longer ones, and every session remains available through its workspace session selector. Very short spans have a six-pixel minimum visible width. Activity spans include idle time, and the track covers the current history page, not every page at once.
+
+Timeline pagination uses complete workspace groups: five per page by default, with saved choices of 5, 10 or 25. Numbered page buttons, first/previous/next/last navigation, ellipses for long ranges and an exact workspace range/total make the unit explicit. Only the final page may contain fewer workspace groups. Session totals are shown separately. A workspace and its matching sessions never split across pages. Counts come from the filtered metadata index; paging does not import session bodies or invoke a model.

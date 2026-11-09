@@ -20,9 +20,9 @@ export function Stat({ theme, label, value, hint }: Surface & { label: string; v
     {hint && <Text style={{ color: c.foregroundMuted, fontSize: 11 }}>{hint}</Text>}
   </View>;
 }
-export function Action({ theme, label, onPress, selected, disabled }: Surface & { label: string; onPress: () => void; selected?: boolean; disabled?: boolean }) {
+export function Action({ theme, label, onPress, selected, disabled, accessibilityLabel }: Surface & { label: string; onPress: () => void; selected?: boolean; disabled?: boolean; accessibilityLabel?: string }) {
   const c = theme.colors; const { t, locale } = useI18n();
-  return <Pressable accessibilityRole="button" accessibilityLabel={t(label)} accessibilityState={{ selected: !!selected, disabled: !!disabled }} disabled={disabled} onPress={onPress}
+  return <Pressable accessibilityRole="button" accessibilityLabel={t(accessibilityLabel ?? label)} accessibilityState={{ selected: !!selected, disabled: !!disabled }} disabled={disabled} onPress={onPress}
     style={{ padding: 9, paddingHorizontal: 12, borderWidth: 1, borderColor: selected ? c.accent : c.border, borderRadius: 6, backgroundColor: c.surface2, opacity: disabled ? 0.45 : 1 }}>
     <Text style={{ color: selected ? c.accent : c.foreground, fontSize: 12 }}>{label}</Text>
   </Pressable>;

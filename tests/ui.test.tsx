@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const mocks = vi.hoisted(() => ({
   save: vi.fn(async () => true), values: { disabled: [] as string[], hidden: [] as string[], selected: 'opencode-v2', paths: {} },
   scrollTo: vi.fn(), catalog: vi.fn(), history: vi.fn(), analyze: vi.fn(), overview: vi.fn(), workspaces: vi.fn(), saveView: vi.fn(async (_values: unknown, _revision: string) => true),
-  view: { language: 'en', days: 30, projectIds: [], workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } } as ViewPreferences,
+  view: { language: 'en', days: 30, historyPageSize: 5, projectIds: [], workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } } as ViewPreferences,
 }));
 vi.mock('react-native', () => ({ View: 'View', Text: 'Text', Pressable: 'Pressable', ScrollView: 'ScrollView', TextInput: 'TextInput' }));
 vi.mock('@getpaseo/plugin/client', () => ({
@@ -36,14 +36,14 @@ async function render(Component: typeof Dashboard | typeof CoachSettings, p: Plu
 }
 function setup(error = false) {
   mocks.saveView.mockImplementation(async () => true);
-  mocks.view = { language: 'en', days: 30, projectIds: [], workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } };
+  mocks.view = { language: 'en', days: 30, historyPageSize: 5, projectIds: [], workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } };
   mocks.workspaces.mockResolvedValue({ projects: [{ id: 'p1', name: 'Fixture Project', directory: '/fixture' }, { id: 'p2', name: 'Other Project', directory: '/other' }], workspaces: [{ id: 'w1', name: 'Human workspace', projectName: 'Fixture Project', projectId: 'p1', directory: '/fixture', projectRoot: '/fixture', worktree: false }, { id: 'w2', name: 'Worktree', projectName: 'Fixture Project', projectId: 'p1', directory: '/worktree', projectRoot: '/fixture', worktree: true }] });
   mocks.catalog.mockResolvedValue({ adapters: [{ id: 'opencode-v2', title: 'OpenCode V2', description: 'Fixture adapter', enabled: true, hidden: false,
     sources: error ? [] : [{ id: 'db', path: '/fixture.db', label: 'Fixture', format: 'v2' }], error: error ? 'Fixture source unavailable' : null }] });
   const acc = new OverviewAccumulator({ adapterId: 'opencode-v2', sourceId: 'db', to: Date.now() });
   acc.discover([summary]); acc.start([summary]); acc.result.status = 'complete';
   mocks.overview.mockResolvedValue(acc.snapshot());
-  mocks.history.mockResolvedValue({ sessions: [summary], hasMore: false });
+  mocks.history.mockResolvedValue({ sessions: [summary], hasMore: false, total: 1, totalSessions: 1, offset: 0 });
   mocks.analyze.mockRejectedValue(new Error('Fixture analysis failed'));
 }
 it.each([[false, false], [true, true]])('renders desktop/light and compact/dark without uncolored text (%s,%s)', async (compact, dark) => {
@@ -179,7 +179,7 @@ it.each([[false, false], [true, true]])('reverses the evidence drill-down step b
   expect(mocks.analyze.mock.calls.length).toBe(calls);
 });
 it('restores the patterns tab and paginated session list when returning from details', async () => {
-  setup(); mocks.history.mockResolvedValue({ sessions: [summary], hasMore: true }); const r = await render(Dashboard, props(false, false));
+  setup(); mocks.history.mockImplementation(async (q: { offset: number }) => ({ sessions: [summary], hasMore: q.offset < 10, total: 11, totalSessions: 11, offset: q.offset })); const r = await render(Dashboard, props(false, false));
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Patterns' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Calendar' }).props.onPress());
@@ -189,7 +189,7 @@ it('restores the patterns tab and paginated session list when returning from det
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Analyze Fixture session' }).props.onPress());
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Timeline' }).props.onPress());
-  expect(mocks.history).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 50 }));
+  expect(mocks.history).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 5 }));
   expect(r.root.findAllByProps({ accessibilityLabel: 'Return to Session details' })).toHaveLength(0);
   expect(r.root.findAllByProps({ accessibilityRole: 'link' })).toHaveLength(0);
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Patterns' }).props.onPress());
@@ -212,7 +212,7 @@ it('lets a breadcrumb skip directly to an earlier visit and discards the abandon
 });
 
 it.each([[false, false], [true, true]])('resets breadcrumbs on section navigation instead of collecting browsing history (%s,%s)', async (compact, dark) => {
-  setup(); mocks.history.mockResolvedValue({ sessions: [summary, { ...summary, id: 's2', title: 'Second session' }], hasMore: false });
+  setup(); mocks.history.mockResolvedValue({ sessions: [summary, { ...summary, id: 's2', title: 'Second session' }], hasMore: false, total: 1, totalSessions: 1, offset: 0 });
   const r = await render(Dashboard, props(compact, dark));
   const links = () => r.root.findAllByProps({ accessibilityRole: 'link' }).map(n => n.props.accessibilityLabel);
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Browse individual sessions' }).props.onPress());
@@ -232,7 +232,7 @@ it('shows one shared track per workspace with separate session selectors', async
     { ...summary, id: 'a', workspaceId: 'w1', projectName: 'Project', workspaceName: 'One' },
     { ...summary, id: 'b', workspaceId: 'w1', projectName: 'Project', workspaceName: 'One' },
     { ...summary, id: 'c', directory: '/other', workspaceId: 'w2', projectName: 'Project', workspaceName: 'Two' },
-  ], hasMore: false });
+  ], hasMore: false, total: 1, totalSessions: 1, offset: 0 });
   const r = await render(Dashboard, props(false, false));
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Browse individual sessions' }).props.onPress());
   await vi.waitFor(async () => {
@@ -241,4 +241,19 @@ it('shows one shared track per workspace with separate session selectors', async
   });
   const selectors = r.root.findAllByProps({ label: 'Selected session' });
   expect(selectors.map(s => s.props.options.map((o: { value: string }) => o.value))).toEqual([['a', 'b'], ['c']]);
+});
+it('navigates numbered workspace pages, shows real totals and saves the page size', async () => {
+  setup(); mocks.history.mockImplementation(async (q: { offset: number }) => ({ sessions: [summary], hasMore: q.offset < 10, total: 12, totalSessions: 90, offset: q.offset }));
+  const r = await render(Dashboard, props(false, false));
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Browse individual sessions' }).props.onPress());
+  await vi.waitFor(async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); }); expect(r.root.findByProps({ accessibilityLabel: 'Page 1', accessibilityRole: 'button' }).props.accessibilityState.disabled).toBe(false); });
+  expect(JSON.stringify(r.toJSON())).toContain('1–5 of 12 workspaces');
+  expect(r.root.findByProps({ accessibilityLabel: 'Previous' }).props.accessibilityState.disabled).toBe(true);
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Page 3', accessibilityRole: 'button' }).props.onPress());
+  await vi.waitFor(async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); }); expect(r.root.findByProps({ accessibilityLabel: 'Page 3', accessibilityRole: 'button' }).props.accessibilityState.disabled).toBe(false); });
+  expect(mocks.history).toHaveBeenLastCalledWith(expect.objectContaining({ groupBy: 'workspace', limit: 5, offset: 10 }));
+  expect(JSON.stringify(r.toJSON())).toContain('11–12 of 12 workspaces');
+  expect(r.root.findByProps({ accessibilityLabel: 'Next' }).props.accessibilityState.disabled).toBe(true);
+  await act(async () => r.root.findByProps({ label: 'Workspaces per page' }).props.onValueChange('10'));
+  expect(mocks.saveView).toHaveBeenLastCalledWith({ ...mocks.view, historyPageSize: 10 }, 'r1');
 });
