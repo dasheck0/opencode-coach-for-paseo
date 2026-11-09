@@ -90,3 +90,9 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - Installed plugin reloaded and reported running. Native Paseo displayed 50 sessions on one shared seven-day UTC axis with five date/time markers, four overlap lanes and one inline inspector. Screenshot inspected for layout and labels. Clicked another session segment and verified the inspector's session/title and Analyze action changed without leaving Timeline or opening a popover.
 - `client/session-timeline.tsx` is reusable independently of history pagination and data fetching; pure interval layout lives in `client/session-timeline-model.ts`. Compact/dark rendering remains covered by tests; no physical mobile client was used.
 - This is a client-only change. No source imports, analysis rules, cache format or model calls were added.
+
+## v0.6.1: exactly one track per workspace (2026-11-09)
+
+- TypeScript and 73 tests passed locally. Added grouping by project/workspace identity with directory fallback, retaining multiple sessions in one workspace and separating identical names across workspaces/projects. Component integration verifies two workspaces yield exactly two tracks with separate session choices.
+- Overlap layout uses one lane only. Short intervals render above long intervals; all sessions remain reachable via the workspace selector. All workspace tracks use common period bounds and date/time markers.
+- Plugin reload reported running. Native interaction was deferred when Paseo reported concurrent user interaction; the changed grouping and single-track behavior are covered by component/model tests.

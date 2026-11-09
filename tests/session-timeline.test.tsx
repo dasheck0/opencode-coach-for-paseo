@@ -4,7 +4,7 @@ import { createElement } from 'react';
 vi.mock('react-native', () => ({ View: 'View', Text: 'Text', Pressable: 'Pressable' }));
 vi.mock('@getpaseo/plugin/client/ui', () => ({ SettingsSelect: 'SettingsSelect' }));
 import { SessionTimeline } from '../client/session-timeline';
-import { timelineLayout, timelineTicks } from '../client/session-timeline-model';
+import { timelineLayout, timelineTicks, workspaceTimelines } from '../client/session-timeline-model';
 import { I18nProvider } from '../client/i18n';
 import type { SessionSummary } from '../shared/model';
 import type { Surface } from '../client/ui';
@@ -21,9 +21,9 @@ it('keeps a continuous multi-day span, clips to bounds and includes exact endpoi
   expect(ticks[0]).toBe(start); expect(ticks.at(-1)).toBe(end);
   expect(new Set(ticks.map(t => new Date(t).toISOString().slice(0, 10))).size).toBe(3);
 });
-it('bounds overlap lanes while keeping every session selectable and handles zero-length/empty input', () => {
+it('keeps overlaps on a single track while keeping every session selectable and handles zero-length/empty input', () => {
   const result = timelineLayout(Array.from({ length: 50 }, (_, i) => session(String(i))), start, end);
-  expect(result.lanes).toBe(4); expect(result.crowded).toBe(true); expect(result.segments).toHaveLength(50);
+  expect(result.lanes).toBe(1); expect(result.crowded).toBe(true); expect(result.segments).toHaveLength(50);
   expect(timelineLayout([session('point', start, start)]).end).toBeGreaterThan(start);
   expect(timelineLayout([], start, end).segments).toEqual([]);
 });
@@ -46,4 +46,14 @@ it.each([[false, 'en'], [true, 'de']] as const)('inspects inline on hover/focus/
   expect(onOpenSession).toHaveBeenCalledExactlyOnceWith('two');
   await act(async () => selector().props.onValueChange('one')); expect(selector().props.value).toBe('one');
   expect(r.root.findAllByType('Text' as never).every(n => n.props.style.color)).toBe(true);
+});
+
+it('groups by workspace identity within a project while retaining sessions and separating matching workspace names', () => {
+  const a = { ...session('a'), projectId: 'p', workspaceId: 'w1' };
+  const b = { ...session('b'), projectId: 'p', workspaceId: 'w1', directory: '/fixture/subdir' };
+  const c = { ...session('c'), projectId: 'p', workspaceId: 'w2' };
+  const d = { ...session('d'), projectId: 'q', workspaceId: 'w1' };
+  const groups = workspaceTimelines([a, b, c, d]);
+  expect(groups.map(g => g.sessions.map(s => s.id))).toEqual([['a', 'b'], ['c'], ['d']]);
+  for (const group of groups) expect(timelineLayout(group.sessions).lanes).toBe(1);
 });

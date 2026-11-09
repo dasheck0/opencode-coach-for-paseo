@@ -22,15 +22,15 @@ export function SessionTimeline({ sessions, selectedId, onOpenSession, from, to,
   return <View style={{ gap: 12 }}>
     <Text verbatim style={{ color: c.foregroundMuted, fontSize: 11 }}>{stamp(model.start)} — {stamp(model.end)} UTC</Text>
     <View accessibilityLabel={t('Session activity track')} onLayout={event => setWidth(Math.max(1, event.nativeEvent.layout.width))} style={{ gap: 5 }}>
-      <View style={{ height: model.lanes * 16 + 8, borderRadius: 6, backgroundColor: c.surface2, position: 'relative' }}>
+      <View style={{ height: 24, borderRadius: 6, backgroundColor: c.surface2, position: 'relative' }}>
         {ticks.map((tick, i) => <View key={tick} pointerEvents="none" style={{ position: 'absolute', left: `${i / (ticks.length - 1) * 100}%`, top: 0, bottom: 0, borderLeftWidth: 1, borderColor: c.border }} />)}
         {model.segments.map(segment => {
           const active = segment.session.id === s.id, minWidth = Math.min(1, 6 / width), segmentWidth = Math.min(1, Math.max(minWidth, segment.width)), left = Math.min(segment.left, 1 - segmentWidth);
           return <Pressable key={segment.session.id} accessibilityRole="button" accessibilityLabel={`${t('Inspect session')}: ${segment.session.title}`} accessibilityState={{ selected: active }}
             onHoverIn={() => setPreview(segment.session.id)} onHoverOut={() => setPreview('')} onFocus={() => setPreview(segment.session.id)} onBlur={() => setPreview('')}
             onPress={() => { setPreview(''); setPinned(segment.session.id); }}
-            style={{ position: 'absolute', left: `${left * 100}%`, width: `${segmentWidth * 100}%`, top: segment.lane * 16, height: 24, justifyContent: 'center', zIndex: active ? 2 : 1 }}>
-            <View style={{ height: active ? 10 : 6, borderRadius: 4, backgroundColor: c.accent, opacity: active ? 1 : 0.65, borderWidth: active ? 1 : 0, borderColor: c.foreground }} />
+            style={{ position: 'absolute', left: `${left * 100}%`, width: `${segmentWidth * 100}%`, top: 0, height: 24, justifyContent: 'center', zIndex: Math.round((1 - segment.width) * 1000) + 1 }}>
+            <View style={{ height: active ? 10 : 6, borderRadius: 4, backgroundColor: c.accent, opacity: active ? 1 : 0.65, borderWidth: 1, borderColor: active ? c.foreground : c.surface2 }} />
           </Pressable>;
         })}
       </View>

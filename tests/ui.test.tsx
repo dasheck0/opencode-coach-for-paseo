@@ -226,3 +226,19 @@ it.each([[false, false], [true, true]])('resets breadcrumbs on section navigatio
     expect(links()).toEqual([]);
   }
 });
+
+it('shows one shared track per workspace with separate session selectors', async () => {
+  setup(); mocks.history.mockResolvedValue({ sessions: [
+    { ...summary, id: 'a', workspaceId: 'w1', projectName: 'Project', workspaceName: 'One' },
+    { ...summary, id: 'b', workspaceId: 'w1', projectName: 'Project', workspaceName: 'One' },
+    { ...summary, id: 'c', directory: '/other', workspaceId: 'w2', projectName: 'Project', workspaceName: 'Two' },
+  ], hasMore: false });
+  const r = await render(Dashboard, props(false, false));
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Browse individual sessions' }).props.onPress());
+  await vi.waitFor(async () => {
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    expect(r.root.findAllByProps({ accessibilityLabel: 'Session activity track' })).toHaveLength(2);
+  });
+  const selectors = r.root.findAllByProps({ label: 'Selected session' });
+  expect(selectors.map(s => s.props.options.map((o: { value: string }) => o.value))).toEqual([['a', 'b'], ['c']]);
+});

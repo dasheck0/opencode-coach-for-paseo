@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.6.0
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.6.1
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -119,4 +119,4 @@ Date windows use **message activity**, so a session started weeks ago is include
 
 A clickable breadcrumb above the page header tracks your drill-down path. Select any earlier step to restore its view, scroll position, Patterns tab and session-list page. The current step is plain highlighted text. Selecting a main section in the sidebar (or compact navigation) starts a new root and clears the previous branch. Only in-content drill-down links extend the path; sibling session details replace one another. The path belongs to the open Coach screen and also resets when the provider, source, project selection or period changes; it is not persisted across plugin reloads. Shared filters remain in place while navigating.
 
-The reusable `SessionTimeline` component accepts sessions, optional `from`/`to` bounds, a selected session ID and an `onOpenSession` callback. It has no data-fetching or pagination dependency. Hover, keyboard focus and click inspect a segment inline; clicking **Analyze** opens its report. All sessions on the current history page share one continuous UTC axis, including spans across midnight. Up to four overlap lanes keep height bounded; every session remains available through the session selector. Very short spans have a six-pixel minimum visible width. Activity spans include idle time, and the track covers the current history page, not every page at once.
+The reusable `SessionTimeline` component accepts sessions, optional `from`/`to` bounds, a selected session ID and an `onOpenSession` callback. It has no data-fetching or pagination dependency. Hover, keyboard focus and click inspect a segment inline; clicking **Analyze** opens its report. Sessions on the current history page are grouped by workspace. Each workspace has exactly one continuous UTC track, including spans across midnight, and all workspace tracks use identical time bounds. Overlapping sessions share the same track; shorter spans are layered above longer ones, and every session remains available through its workspace session selector. Very short spans have a six-pixel minimum visible width. Activity spans include idle time, and the track covers the current history page, not every page at once.
