@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Text, I18nProvider, useI18n } from './i18n';
-import { languagePacks } from './locales';
-import { WorkspacePicker } from './workspace-picker';
+import { ProjectPicker } from './project-picker';
 import { viewPreferences, type ViewPreferences } from '../shared/preferences';
 import { SettingsSelect } from '@getpaseo/plugin/client/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -32,9 +31,16 @@ function DashboardContent(props: PluginScreenProps) {
   const [offset, setOffset] = useState(0);
   const days = view.status === 'ready' ? view.values.days : 30;
   const since = days ? until - days * 86400000 : 0;
-  const workspaceIds = view.status === 'ready' ? view.values.workspaceIds : [];
+  const legacyIds = view.status === 'ready' ? view.values.workspaceIds : [];
+  const projectIds = view.status === 'ready' ? (legacyIds.length ? [...new Set((workspaceCatalog.data?.workspaces ?? []).filter(w => legacyIds.includes(w.id)).map(w => w.projectId))] : view.values.projectIds) : [];
+  const filterReady = !legacyIds.length || !!workspaceCatalog.data;
+  useEffect(() => {
+    if (view.status === 'ready' && !view.saving && legacyIds.length && workspaceCatalog.data) {
+      void view.save({ ...view.values, projectIds, workspaceIds: [] }, view.revision);
+    }
+  }, [view.status === 'ready' ? view.revision : '', workspaceCatalog.data]);
   const origin = view.status === 'ready' && page !== 'settings' ? view.values.origins[page] : 'all';
-  const filterKey = JSON.stringify(workspaceIds);
+  const filterKey = JSON.stringify(projectIds);
   const selected = settings.status === 'ready' ? settings.values.selected : '';
   const providers = catalog.data?.adapters.filter(a => a.enabled && !a.hidden) ?? [];
   const adapter = providers.find(a => a.id === selected);
@@ -42,9 +48,9 @@ function DashboardContent(props: PluginScreenProps) {
   useEffect(() => { setSourceId(''); setSessionId(''); setOffset(0); }, [selected]);
   useEffect(() => { setSessionId(''); setOffset(0); }, [source?.id, days, filterKey]);
   const history = useQuery({ queryKey: ['coach', 'history', selected, source?.id, since, until, filterKey, origin, offset],
-    queryFn: () => historyCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, workspaceIds, origin, limit: 50, offset }), enabled: !!source && view.status === 'ready' && page === 'timeline' });
+    queryFn: () => historyCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin, limit: 50, offset }), enabled: !!source && filterReady && view.status === 'ready' && page === 'timeline' });
   const overview = useQuery({ queryKey: ['coach', 'overview', selected, source?.id, since, until, filterKey, origin],
-    queryFn: () => overviewCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, workspaceIds, origin }), enabled: !!source && view.status === 'ready', retry: false,
+    queryFn: () => overviewCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin }), enabled: !!source && filterReady && view.status === 'ready', retry: false,
     refetchInterval: query => query.state.data?.status === 'complete' || query.state.data?.status === 'error' ? false : 1500 });
   const report = useQuery({ queryKey: ['coach', 'report', selected, source?.id, sessionId, origin],
     queryFn: () => analyzeCall({ adapterId: selected, sourceId: source!.id, sessionId, origin }), enabled: !!source && !!sessionId && page === 'timeline' });
@@ -56,9 +62,8 @@ function DashboardContent(props: PluginScreenProps) {
     <Text style={{ color: c.foregroundMuted, fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>HARNESS / PROVIDER</Text>
     <View style={{ flexDirection: layout.compact ? 'row' : 'column', flexWrap: 'wrap', gap: 6 }}>{providers.map(a => <Action key={a.id} {...props} label={a.title} selected={a.id === selected} disabled={settings.saving} onPress={() => { if (settings.status === 'ready') void settings.save({ ...settings.values, selected: a.id }, settings.revision); }} />)}</View>
     {adapter?.sources.map(s => <Action key={s.id} {...props} label={`${s.label} · ${s.format}`} selected={s.id === source?.id} onPress={() => setSourceId(s.id)} />)}
-    <Text style={{ color: c.foregroundMuted, fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>WORKSPACE</Text>
-    <WorkspacePicker {...props} workspaces={workspaceCatalog.data?.workspaces ?? []} selected={workspaceIds} onChange={ids => saveView({ workspaceIds: ids })} disabled={view.status !== 'ready' || view.saving || workspaceCatalog.isPending} error={workspaceCatalog.error?.message} />
-    <SettingsSelect label={t('Language')} value={view.status === 'ready' ? view.values.language : 'en'} options={languagePacks.map(p => ({ label: p.name, value: p.code }))} disabled={view.status !== 'ready' || view.saving} onValueChange={language => saveView({ language })} />
+    <Text style={{ color: c.foregroundMuted, fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>PROJECT</Text>
+    <ProjectPicker {...props} projects={workspaceCatalog.data?.projects ?? []} selected={projectIds} onChange={ids => saveView({ projectIds: ids, workspaceIds: [] })} disabled={view.status !== 'ready' || view.saving || workspaceCatalog.isPending} error={workspaceCatalog.error?.message} />
     <Text style={{ color: c.foregroundMuted, fontSize: 10 }}>Local rules · No API costs</Text>
   </View>;
   return <View style={{ flex: 1, width: '100%', height: '100%', minWidth: 0, alignSelf: 'stretch', flexDirection: layout.compact ? 'column' : 'row', backgroundColor: c.surface0 }}>

@@ -1,3 +1,4 @@
+import { RuleHelp } from './rule-help';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Text, useI18n } from './i18n';
@@ -65,10 +66,11 @@ export function OverviewPanel(props: OverviewProps) {
 }
 export function AntiPatternsPage(props: OverviewProps) {
   const { data, theme, onOpenSession } = props, c = theme.colors;
+  const [openHelp, setOpenHelp] = useState<string | null>(null);
   return <View style={{ gap: 16 }}>
     <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}><Stat {...props} label="Active warning rules" value={data.insights.length} /><Stat {...props} label="Analyzed sessions" value={data.analyzed} /><Stat {...props} label="Incomplete reports" value={data.incomplete} /></View>
     <Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Ranked by affected sessions. Each rule counts once per session. Trends compare the earlier and later halves of this period, with {data.periods.earlierSessions} and {data.periods.laterSessions} analyzed sessions respectively.</Text>
-    {data.insights.map(i => <Panel key={i.rule} {...props} title={i.title}>
+    {data.insights.map(i => <Panel key={i.rule} {...props} title={i.title} raised={openHelp === i.rule} trailing={<RuleHelp {...props} rule={i.rule} onOpenChange={open => setOpenHelp(open ? i.rule : null)} />}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}><Text style={{ color: c.statusWarning, fontWeight: '600' }}>{i.affectedSessions} sessions · {i.percentage}%</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{i.changePoints === null ? 'Trend: insufficient evidence' : `${i.earlierPercentage}% → ${i.laterPercentage}% (${i.changePoints > 0 ? '+' : ''}${i.changePoints} pp)`}</Text></View>
       <Text style={{ color: c.foreground }}>{i.advice}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{i.examples.map(e => <Pressable key={e.sessionId} accessibilityRole="button" accessibilityLabel={`Open evidence: ${e.title}`} onPress={() => onOpenSession(e.sessionId)} style={{ padding: 9, backgroundColor: c.surface2, borderRadius: 6 }}><Text verbatim style={{ color: c.accent, fontSize: 12 }}>{e.title}{e.projectName ? ` · ${e.projectName}` : ''}{e.workspaceName ? ` · ${e.workspaceName}` : ''} →</Text></Pressable>)}</View>

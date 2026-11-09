@@ -15,9 +15,9 @@ it('offers German/English catalogs with matching keys and safe English fallback'
 });
 it('keeps dynamic session titles and numbers intact in translated templates', () => {
   expect(translate('Analyze My workspace', 'de')).toBe('Auswerten: My workspace');
-  expect(translate('3 workspaces selected', 'de')).toBe('3 Workspaces ausgewählt');
+  expect(translate('3 projects selected', 'de')).toBe('3 Projekte ausgewählt');
 });
 it('defaults and persisted view choices include per-page origin, period, language and multi-selection', () => {
   const values = viewPreferences.schema.parse({}); expect(values.origins).toEqual(defaultOrigins); expect(values.language).toBe('de');
-  expect(viewPreferences.schema.parse({ ...values, language: 'en', days: 7, workspaceIds: ['w1', 'w2'] })).toMatchObject({ language: 'en', days: 7, workspaceIds: ['w1', 'w2'] });
+  expect(viewPreferences.schema.parse({ ...values, language: 'en', days: 7, projectIds: ['p1', 'p2'] })).toMatchObject({ language: 'en', days: 7, projectIds: ['p1', 'p2'] });
 });

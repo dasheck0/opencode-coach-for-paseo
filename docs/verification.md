@@ -56,3 +56,10 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - After a real plugin reload the same 66-session sample reused 66 persisted reports, imported zero sessions, and reported zero cache errors. Project/workspace annotations and the two-workspace filter remained correct.
 - The saved host preferences survived reload unchanged: German, seven-day period and the approved per-page origin defaults.
 - Added a final check that AI-origin long sessions do not count as human-origin long sessions. The German progress-status fragments and origin-sensitive prompt counts use the same localized rendering boundary as the other native pages.
+
+## v0.5.0: project filters and rule explanations (2026-11-09)
+
+- TypeScript and 52 tests passed on Node 24 locally. Added project-root/worktree/historical-worktree matching, empty projects, path boundaries, saved selection migration, Settings-only language choice, and all eight localized rule explanations with hover/focus/touch interaction checks.
+- Installed plugin reloaded successfully and reported running. Native Paseo UI displayed PROJECT / Projekte auswählen, without the sidebar language control. Opened the German anti-pattern explanation and inspected its placement and text.
+- Local daemon returned 19 projects and 35 workspaces. Selecting the active project returned 68 sessions spanning four workspaces. Overview: 68 analyzed, zero failures. Both unfiltered and project-filtered runs reused 68 cached reports, imported zero sessions, and reported zero cache errors.
+- Compact/dark and desktop/light rendering are covered by component tests; no physical mobile client was available. No model requests were introduced.

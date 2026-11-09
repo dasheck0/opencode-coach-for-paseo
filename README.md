@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.4.0
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.5.0
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -20,7 +20,7 @@ The daemon needs `node:sqlite` (Node 22.13+), or a `sqlite3` executable (3.25+) 
 - OpenCode V2: `session_v2` metadata and ordered `session_message` inline content.
 - Older OpenCode SQLite: `session`, `message`, and `part` tables.
 - Automatic source discovery, configurable paths, and source selection.
-- Historical date windows, Paseo workspace multi-selection, and 50-session pagination.
+- Historical date windows, Paseo project multi-selection, and 50-session pagination.
 - An automatic overview across **every matching session in the selected source and period**, independent of the paginated session browser.
 - Ranked coaching priorities with affected-session counts and percentages, practical next steps, and optional evidence links.
 - Earlier/later period rate comparisons, a 14-day activity chart, and total tool, prompt, token, and recorded cost metrics.
@@ -35,7 +35,7 @@ This is an initial independent implementation inspired by [Microsoft AI Engineer
 
 ## Interface structure
 
-The native UI follows the reference coach's **Observe / Measure / Improve** navigation, shared workspace/provider filters, page headers, metric cards, practice-area cards, charts, and drill-down hierarchy.
+The native UI follows the reference coach's **Observe / Measure / Improve** navigation, shared project/provider filters, page headers, metric cards, practice-area cards, charts, and drill-down hierarchy.
 
 | Area | Page | Current data and behavior |
 | --- | --- | --- |
@@ -47,21 +47,21 @@ The native UI follows the reference coach's **Observe / Measure / Improve** navi
 | Improve | Context Health | Recorded compaction and long-session signals with context-maintenance guidance |
 | Settings | Providers | Activation, visibility, selection and explicit data paths |
 
-Navigation preserves the same date/source/workspace filters and active analysis. Compact clients use a horizontal grouped menu. All pages use native React Native components and Paseo theme colors.
+Navigation preserves the same date/source/project filters and active analysis. Compact clients use a horizontal grouped menu. All pages use native React Native components and Paseo theme colors.
 
 This is a structural adaptation, not full feature parity. The reference's Coding Moments screenshot gallery, Curiosity analysis, Skill Finder, Level Up/learning flows, instruction-file audits, AI readiness scores and code-line accounting are not implemented. They are omitted rather than shown as working features. Context Health is explicitly limited to session evidence. Edit-call totals are not labeled generated code lines. No model-backed feature or outbound model request is enabled.
 
-## Language, origins, workspaces and persistence
+## Language, origins, projects and persistence
 
 - German and English UI, with saved host-scoped language selection. See [contributing translations](docs/translations.md) for adding JSON catalogs and registering another language.
 - Saved date-window selection shared by every page. Reopening the Coach restores it instead of resetting to 30 days.
-- Searchable multi-select of existing Paseo workspaces, with human-readable project/workspace labels in session details, evidence links, and top-workspace lists.
+- Searchable multi-select of existing Paseo projects, with human-readable project/workspace labels in session details, evidence links, and top-workspace lists.
 - Saved session-origin defaults per page, agreed with the user: Dashboard and Anti-Patterns use human-led main sessions; Output, Patterns, Timeline and Context Health include subagents. See [the scope matrix](docs/message-origins.md) for semantics and limitations.
 - [Persistent incremental cache](docs/cache.md): changing 30→7→30 days or restarting the plugin reuses unchanged reports. Tomorrow only new or updated sessions need body imports. A cheap metadata scan still discovers changes; it is not a full body reimport. Cache reuse/import/error counts are visible.
 
 ## Overview first
 
-The overview starts automatically when you open the Coach. Date and Paseo workspace multi-selection apply to all matching sessions in the selected database. Choose one or more existing Paseo workspaces from the searchable dropdown; an empty selection includes all workspaces. The first analysis of a large history can take several minutes. Results update as it runs and are marked provisional until it finishes. You can leave the screen while the daemon continues. **Browse individual sessions** is optional.
+The overview starts automatically when you open the Coach. Date and Paseo project multi-selection apply to all matching sessions in the selected database. Choose one or more existing Paseo projects from the searchable dropdown; an empty selection includes all projects. The first analysis of a large history can take several minutes. Results update as it runs and are marked provisional until it finishes. You can leave the screen while the daemon continues. **Browse individual sessions** is optional.
 
 Patterns count each warning rule once per session. Informational findings are excluded from coaching priorities. The top three priorities are ranked by affected sessions, with concrete advice. Percentages use all analyzed sessions, including delegated work; they do not indicate productivity or code quality. Trends compare rule occurrence rates in the earlier and later halves of the selected period, with sample counts and percentage-point changes. They compare the session mix within that period, not against a separate previous period. The activity chart covers the last 14 UTC calendar days ending at the chosen cutoff.
 
@@ -112,3 +112,5 @@ See [adapter development](docs/adapters.md) and [verification](docs/verification
 ## License
 
 MIT. Independent of Microsoft, OpenCode, and Paseo.
+
+Project selection includes the project root and its worktrees, including identifiable historical worktrees. The dropdown uses Paseo’s project list, including projects without active workspaces. Existing saved workspace selections migrate to their projects. Language selection is available only in Settings. Each anti-pattern has an info popover explaining its exact detection criteria and limitations; hover, keyboard focus and click/touch are supported.

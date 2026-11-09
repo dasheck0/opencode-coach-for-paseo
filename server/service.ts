@@ -6,7 +6,7 @@ import { OverviewAccumulator } from './overview';
 import { setImmediate } from 'node:timers/promises';
 import { analyze } from './analyze';
 import { ANALYSIS_VERSION, MemoryReportCache, type ReportCache, type ReportBundle } from './cache';
-import { enrichSummary, selectedWorkspace } from './workspaces';
+import { enrichSummary, selectedProject, projectsFor } from './workspaces';
 import type { AdapterRegistry, CoachAdapter } from './adapters/types';
 export interface Preferences { disabled: string[]; hidden: string[]; selected: string; paths: Record<string, string[]> }
 const matchesOrigin = (s: SessionSummary, origin: Origin = 'all') => origin === 'all' || (origin === 'human' ? !s.parentId : !!s.parentId);
@@ -35,9 +35,9 @@ export class CoachService {
     if (!source) throw new Error('Source no longer available. Refresh the provider list.');
     return { adapter, source };
   }
-  private async workspaceSelection(ids?: string[]) {
+  private async projectSelection(ids?: string[]) {
     const catalog = await this.readWorkspaces();
-    if (ids?.some(id => !catalog.workspaces.some(w => w.id === id))) throw new Error('A selected workspace is no longer available. Update the workspace selection.');
+    if (ids?.some(id => !projectsFor(catalog).some(w => w.id === id))) throw new Error('A selected project is no longer available. Update the project selection.');
     return catalog;
   }
   private async report(adapter: CoachAdapter, source: Source, summary: SessionSummary, counts?: { reused: number; imported: number; errors: number }) {
@@ -66,24 +66,24 @@ export class CoachService {
     } finally { this.inFlight.delete(key); }
   }
   async history(adapterId: string, sourceId: string, query: HistoryQuery) {
-    const { adapter, source } = await this.resolve(adapterId, sourceId), catalog = await this.workspaceSelection(query.workspaceIds);
-    if (!query.workspaceIds?.length && (!query.origin || query.origin === 'all')) {
+    const { adapter, source } = await this.resolve(adapterId, sourceId), catalog = await this.projectSelection(query.projectIds);
+    if (!query.projectIds?.length && (!query.origin || query.origin === 'all')) {
       const rows = await adapter.history(source, { ...query, limit: query.limit + 1 });
       return { sessions: rows.slice(0, query.limit).map(s => enrichSummary(s, catalog)), hasMore: rows.length > query.limit };
     }
     const matched: SessionSummary[] = []; let offset = 0;
     while (matched.length <= query.offset + query.limit) {
       const page = await adapter.history(source, { from: query.from, to: query.to, directory: query.directory, limit: 200, offset });
-      matched.push(...page.filter(s => matchesOrigin(s, query.origin) && selectedWorkspace(s, query.workspaceIds, catalog)));
+      matched.push(...page.filter(s => matchesOrigin(s, query.origin) && selectedProject(s, query.projectIds, catalog)));
       if (page.length < 200) break;
       offset += page.length;
     }
     return { sessions: matched.slice(query.offset, query.offset + query.limit).map(s => enrichSummary(s, catalog)), hasMore: matched.length > query.offset + query.limit };
   }
   async overview(input: OverviewInput) {
-    const { adapter, source } = await this.resolve(input.adapterId, input.sourceId), catalog = await this.workspaceSelection(input.workspaceIds);
+    const { adapter, source } = await this.resolve(input.adapterId, input.sourceId), catalog = await this.projectSelection(input.projectIds);
     const origin = input.origin ?? 'all';
-    const key = JSON.stringify([input.adapterId, input.sourceId, input.from ?? null, input.to, input.directory ?? '', [...(input.workspaceIds ?? [])].sort(), origin, catalog]);
+    const key = JSON.stringify([input.adapterId, input.sourceId, input.from ?? null, input.to, input.directory ?? '', [...(input.projectIds ?? [])].sort(), origin, catalog]);
     const existing = this.jobs.get(key);
     if (existing) { existing.touched = Date.now(); return existing.accumulator.snapshot(); }
     for (const [id, entry] of this.jobs) if (['complete', 'error'].includes(entry.accumulator.result.status) && (this.jobs.size >= 6 || Date.now() - entry.touched > 900000)) this.jobs.delete(id);
@@ -101,7 +101,7 @@ export class CoachService {
         const page = await adapter.history(source, { from: input.from, to: input.to, directory: input.directory, limit: 200, offset });
         const fresh = page.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
         if (page.length && !fresh.length) throw new Error('Provider pagination did not advance. Refresh the overview.');
-        const included = fresh.filter(s => matchesOrigin(s, origin) && selectedWorkspace(s, input.workspaceIds, catalog)).map(s => enrichSummary(s, catalog));
+        const included = fresh.filter(s => matchesOrigin(s, origin) && selectedProject(s, input.projectIds, catalog)).map(s => enrichSummary(s, catalog));
         summaries.push(...included); accumulator.discover(included);
         if (page.length < 200) break;
         offset += page.length; await setImmediate();

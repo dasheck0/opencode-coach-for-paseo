@@ -3,7 +3,7 @@ import { origins } from './preferences';
 
 export const overviewInputSchema = z.object({
   adapterId: z.string(), sourceId: z.string(), from: z.number().optional(), to: z.number(),
-  directory: z.string().optional(), workspaceIds: z.array(z.string()).optional(), origin: z.enum(origins).optional(),
+  directory: z.string().optional(), projectIds: z.array(z.string()).optional(), origin: z.enum(origins).optional(),
 }).refine(x => x.from === undefined || x.from <= x.to, 'Start must precede end');
 export type OverviewInput = z.infer<typeof overviewInputSchema>;
 export const overviewSchema = z.object({

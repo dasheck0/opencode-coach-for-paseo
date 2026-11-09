@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { enrichSummary, selectedWorkspace } from '../server/workspaces';
+import { enrichSummary, selectedProject, fetchWorkspaces } from '../server/workspaces';
 import type { SessionSummary } from '../shared/model';
 import type { WorkspaceCatalog } from '../shared/workspaces';
 const catalog: WorkspaceCatalog = { workspaces: [
@@ -11,13 +11,22 @@ it('maps random worktree names to the actual Paseo project and workspace', () =>
   expect(enrichSummary(summary, catalog)).toMatchObject({ projectName: 'Meeting app', workspaceName: 'NAM-13 Aufnahme', workspaceId: 'w1' });
   expect(enrichSummary({ ...summary, directory: '/home/.paseo/worktrees/hash/old-worktree' }, catalog)).toMatchObject({ projectName: 'Meeting app', workspaceName: 'old-worktree' });
 });
-it('supports multi-selection with path boundaries instead of accidental prefix matches', () => {
-  expect(selectedWorkspace(summary, ['w1', 'w2'], catalog)).toBe(true);
-  expect(selectedWorkspace(summary, ['w2'], catalog)).toBe(false);
-  expect(selectedWorkspace({ ...summary, directory: '/project-other' }, ['w2'], catalog)).toBe(false);
-  expect(selectedWorkspace({ ...summary, directory: '/project/subdir' }, ['w2'], catalog)).toBe(true);
+it('filters projects across main, active and historical worktrees with path boundaries', () => {
+  for (const directory of ['/project', '/project/subdir', summary.directory, '/home/.paseo/worktrees/hash/old-worktree']) {
+    expect(selectedProject({ ...summary, directory }, ['p'], catalog)).toBe(true);
+    expect(selectedProject({ ...summary, directory }, ['other'], catalog)).toBe(false);
+  }
+  expect(selectedProject({ ...summary, directory: '/project-other' }, ['p'], catalog)).toBe(false);
+  expect(selectedProject(summary, ['other', 'p'], catalog)).toBe(true);
+  expect(selectedProject(summary, [], catalog)).toBe(true);
 });
-it('includes a selected local workspace alias sharing the same directory', () => {
-  const aliases = { workspaces: [...catalog.workspaces, { ...catalog.workspaces[1], id: 'local-alias', name: 'Another local workspace' }] };
-  expect(selectedWorkspace({ ...summary, directory: '/project' }, ['local-alias'], aliases)).toBe(true);
+it('includes projects without active workspaces and resolves nested project roots', async () => {
+  const projects = [{ projectId: 'empty', projectDisplayName: 'Empty', projectRootPath: '/empty' }];
+  const paseo = { workspaces: { list: async () => ({ entries: [], pageInfo: {} }) }, projects: { list: async () => ({ projects }) } };
+  const result = await fetchWorkspaces(paseo as unknown as Parameters<typeof fetchWorkspaces>[0]);
+  expect(result.projects).toEqual([{ id: 'empty', name: 'Empty', directory: '/empty' }]);
+  expect(selectedProject({ ...summary, directory: '/empty/subdir' }, ['empty'], result)).toBe(true);
+  const nested = { ...result, projects: [...result.projects!, { id: 'nested', name: 'Nested', directory: '/empty/nested' }] };
+  expect(selectedProject({ ...summary, directory: '/empty/nested' }, ['empty'], nested)).toBe(false);
+  expect(selectedProject({ ...summary, directory: '/empty/nested' }, ['nested'], nested)).toBe(true);
 });

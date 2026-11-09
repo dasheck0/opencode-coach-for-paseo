@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const sourceSchema = z.object({ id: z.string(), label: z.string(), path: z.string(), format: z.string() });
 export const summarySchema = z.object({
   id: z.string(), adapterId: z.string(), sourceId: z.string(), title: z.string(), directory: z.string(),
-  workspaceId: z.string().optional(), workspaceName: z.string().optional(), projectName: z.string().optional(),
+  projectId: z.string().optional(), workspaceId: z.string().optional(), workspaceName: z.string().optional(), projectName: z.string().optional(),
   parentId: z.string().nullable(), created: z.number(), updated: z.number(),
   inputTokens: z.number().nullable(), outputTokens: z.number().nullable(), cost: z.number().nullable(),
 });
@@ -31,4 +31,4 @@ export const reportSchema = z.object({
 });
 export type Report = z.infer<typeof reportSchema>;
 export type Finding = z.infer<typeof findingSchema>;
-export interface HistoryQuery { from?: number; to?: number; directory?: string; limit: number; offset: number; workspaceIds?: string[]; origin?: 'human' | 'ai' | 'all' }
+export interface HistoryQuery { from?: number; to?: number; directory?: string; limit: number; offset: number; projectIds?: string[]; origin?: 'human' | 'ai' | 'all' }

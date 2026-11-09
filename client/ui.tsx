@@ -3,10 +3,11 @@ import { Pressable, View } from 'react-native';
 import { Text, useI18n } from './i18n';
 import type { PluginSurfaceProps } from '@getpaseo/plugin/client';
 export type Surface = Pick<PluginSurfaceProps, 'theme' | 'layout'>;
-export function Panel({ theme, title, children, action, onAction, verbatimTitle }: Surface & { title: string; children: ReactNode; action?: string; onAction?: () => void; verbatimTitle?: boolean }) {
+export function Panel({ theme, title, children, action, onAction, verbatimTitle, trailing, raised }: Surface & { title: string; children: ReactNode; action?: string; onAction?: () => void; verbatimTitle?: boolean; trailing?: ReactNode; raised?: boolean }) {
   const c = theme.colors; const { t, locale } = useI18n();
-  return <View style={{ borderWidth: 1, borderColor: c.border, borderRadius: 8, backgroundColor: c.surface1, padding: 18, gap: 14 }}>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}><Text verbatim={verbatimTitle} accessibilityRole="header" style={{ color: c.foreground, fontSize: 15, fontWeight: '600' }}>{title}</Text>
+  return <View style={{ zIndex: raised ? 20 : 0, borderWidth: 1, borderColor: c.border, borderRadius: 8, backgroundColor: c.surface1, padding: 18, gap: 14 }}>
+    <View style={{ zIndex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}><Text verbatim={verbatimTitle} accessibilityRole="header" style={{ color: c.foreground, fontSize: 15, fontWeight: '600' }}>{title}</Text>
+      {trailing}
       {action && onAction && <Pressable accessibilityRole="button" accessibilityLabel={t(action)} onPress={onAction}><Text style={{ color: c.accent, fontSize: 12 }}>{action} →</Text></Pressable>}
     </View>{children}
   </View>;

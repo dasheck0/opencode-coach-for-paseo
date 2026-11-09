@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const mocks = vi.hoisted(() => ({
   save: vi.fn(async () => true), values: { disabled: [] as string[], hidden: [] as string[], selected: 'opencode-v2', paths: {} },
   catalog: vi.fn(), history: vi.fn(), analyze: vi.fn(), overview: vi.fn(), workspaces: vi.fn(), saveView: vi.fn(async (_values: unknown, _revision: string) => true),
-  view: { language: 'en', days: 30, workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } } as ViewPreferences,
+  view: { language: 'en', days: 30, projectIds: [], workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } } as ViewPreferences,
 }));
 vi.mock('react-native', () => ({ View: 'View', Text: 'Text', Pressable: 'Pressable', ScrollView: 'ScrollView', TextInput: 'TextInput' }));
 vi.mock('@getpaseo/plugin/client', () => ({
@@ -36,8 +36,8 @@ async function render(Component: typeof Dashboard | typeof CoachSettings, p: Plu
 }
 function setup(error = false) {
   mocks.saveView.mockImplementation(async () => true);
-  mocks.view = { language: 'en', days: 30, workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } };
-  mocks.workspaces.mockResolvedValue({ workspaces: [{ id: 'w1', name: 'Human workspace', projectName: 'Fixture Project', projectId: 'p1', directory: '/fixture', projectRoot: '/fixture', worktree: false }, { id: 'w2', name: 'Worktree', projectName: 'Fixture Project', projectId: 'p1', directory: '/worktree', projectRoot: '/fixture', worktree: true }] });
+  mocks.view = { language: 'en', days: 30, projectIds: [], workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } };
+  mocks.workspaces.mockResolvedValue({ projects: [{ id: 'p1', name: 'Fixture Project', directory: '/fixture' }, { id: 'p2', name: 'Other Project', directory: '/other' }], workspaces: [{ id: 'w1', name: 'Human workspace', projectName: 'Fixture Project', projectId: 'p1', directory: '/fixture', projectRoot: '/fixture', worktree: false }, { id: 'w2', name: 'Worktree', projectName: 'Fixture Project', projectId: 'p1', directory: '/worktree', projectRoot: '/fixture', worktree: true }] });
   mocks.catalog.mockResolvedValue({ adapters: [{ id: 'opencode-v2', title: 'OpenCode V2', description: 'Fixture adapter', enabled: true, hidden: false,
     sources: error ? [] : [{ id: 'db', path: '/fixture.db', label: 'Fixture', format: 'v2' }], error: error ? 'Fixture source unavailable' : null }] });
   const acc = new OverviewAccumulator({ adapterId: 'opencode-v2', sourceId: 'db', to: Date.now() });
@@ -94,12 +94,12 @@ it('shows actionable cross-session insights immediately without opening any sess
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(mocks.analyze).toHaveBeenCalledWith({ adapterId: 'opencode-v2', sourceId: 'db', sessionId: 's', origin: 'all' });
 });
-it('selects multiple named Paseo workspaces using a dropdown without accepting arbitrary paths', async () => {
+it('selects multiple named Paseo projects using a dropdown without accepting arbitrary paths', async () => {
   setup(); const r = await render(Dashboard, props(false, false));
-  await act(async () => r.root.findByProps({ accessibilityLabel: 'Choose workspaces' }).props.onPress());
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Choose projects' }).props.onPress());
   const options = r.root.findAllByProps({ accessibilityRole: 'checkbox' }); expect(options).toHaveLength(2);
   await act(async () => options[0].props.onPress());
-  expect(mocks.saveView).toHaveBeenLastCalledWith({ ...mocks.view, workspaceIds: ['w1'] }, 'r1');
+  expect(mocks.saveView).toHaveBeenLastCalledWith({ ...mocks.view, projectIds: ['p1'] }, 'r1');
   expect(r.root.findAllByProps({ accessibilityLabel: 'Filter by exact workspace directory' })).toHaveLength(0);
 });
 it.each([[false, false], [true, true]])('keeps shared filters and analysis while navigating native coach pages (%s,%s)', async (compact, dark) => {
@@ -109,7 +109,7 @@ it.each([[false, false], [true, true]])('keeps shared filters and analysis while
     await act(async () => r.root.findByProps({ accessibilityLabel: `Navigate to ${page}` }).props.onPress());
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
     expect(JSON.stringify(r.toJSON())).toContain(content);
-    expect(r.root.findAllByProps({ accessibilityLabel: 'Choose workspaces' })).toHaveLength(1);
+    expect(r.root.findAllByProps({ accessibilityLabel: 'Choose projects' })).toHaveLength(1);
     for (const node of r.root.findAllByType('Text' as never)) expect(node.props.style.color).toBeTruthy();
   }
   expect(mocks.overview.mock.calls.length).toBeLessThanOrEqual(overviewCalls + 2);
@@ -129,6 +129,8 @@ it('saves and restores language, period and the per-page origin preference', asy
   mocks.saveView.mockImplementation(async values => { mocks.view = values as ViewPreferences; return true; });
   await act(async () => r.root.findByProps({ accessibilityLabel: '7 days' }).props.onPress());
   expect(mocks.view.days).toBe(7);
+  expect(r.root.findAllByProps({ label: 'Language' })).toHaveLength(0);
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Providers' }).props.onPress());
   await act(async () => r.root.findByProps({ label: 'Language' }).props.onValueChange('de'));
   r = await render(Dashboard, props(false, false));
   expect(r.root.findByProps({ accessibilityLabel: '7 Tage' }).props.accessibilityState.selected).toBe(true);
@@ -139,4 +141,10 @@ it('saves and restores language, period and the per-page origin preference', asy
   await act(async () => origin.props.onValueChange('all'));
   expect(mocks.view.origins.dashboard).toBe('all');
   expect(mocks.view.origins['anti-patterns']).toBe('human');
+});
+
+it('migrates saved workspace choices to their projects while preserving other preferences', async () => {
+  setup(); mocks.view.workspaceIds = ['w1', 'w2']; mocks.view.days = 7;
+  await render(Dashboard, props(false, false));
+  expect(mocks.saveView).toHaveBeenCalledWith({ ...mocks.view, projectIds: ['p1'], workspaceIds: [] }, 'r1');
 });
