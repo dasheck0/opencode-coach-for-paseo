@@ -13,6 +13,8 @@ Initial implementation checked on 2026-11-09 with Paseo daemon/app 0.15.3 on mac
 - Read and analyzed an existing local V2 session through the same adapter and engine: 14 assistant calls, 17 tool calls, 2 successful edit calls, 1 recognized verification command, and no import warning. Counts are a point-in-time sample, not a benchmark or correctness claim.
 - Exercised installed catalog, history, and analysis RPCs through an authenticated local Paseo SDK connection, including a missing-session error. All three succeeded and the expected error was returned.
 - Regenerated the dependency lock from an empty directory after the initial CI install exposed an inconsistent transitive resolution; a clean `npm ci --ignore-scripts` then succeeded.
+- Verified direct installation from the public Git repository under a temporary runtime ID, with no local development dependency tree. The plugin reached running and its catalog/history/analysis RPCs succeeded. The temporary installation was removed; the development installation remains running.
+- Pinned React, React Native, and the renderer to compatible development versions; strict peer resolution and a clean Node 22 install succeeded.
 - No HTML/DOM usage in client modules. React Native primitives and theme colors are used throughout.
 
 Not yet verified on a physical iOS/Android device, on Windows/Linux hosts, or by visually switching the live app theme. Compact/dark coverage is component-level. Provider setting mutations are exercised in component/service tests; live settings conflict/reconnect behavior relies on the Paseo SDK contract. Claude Code parsing is not implemented.
