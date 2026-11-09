@@ -83,3 +83,10 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - TypeScript and 67 tests passed locally, including desktop/light and compact/dark regression cases for section switches resetting the path, reselecting the current section, peer session details replacing each other, direct breadcrumb jumps, scroll restoration and paginated session-list return.
 - Sidebar and compact navigation start a new root; only in-content drill-down actions extend the path. Returning to an ancestor truncates the branch and cannot create cycles. Global analysis filters are preserved.
 - The installed plugin reloaded successfully and reported running. Native interaction was not repeated because the user's active window had moved away from the Coach; behavior is covered by component interaction tests.
+
+## v0.6.0: reusable compact session timeline (2026-11-09)
+
+- TypeScript and 71 tests passed locally. Added continuous multi-day geometry, exact range endpoints, clipping, zero-length/empty cases, 50 overlapping sessions with bounded lanes, and English/desktop plus German/compact interaction tests. Hover/focus/click update the inline inspector without opening analysis; selection and explicit Analyze are tested separately. Existing breadcrumb and pagination tests use the new session selector.
+- Installed plugin reloaded and reported running. Native Paseo displayed 50 sessions on one shared seven-day UTC axis with five date/time markers, four overlap lanes and one inline inspector. Screenshot inspected for layout and labels. Clicked another session segment and verified the inspector's session/title and Analyze action changed without leaving Timeline or opening a popover.
+- `client/session-timeline.tsx` is reusable independently of history pagination and data fetching; pure interval layout lives in `client/session-timeline-model.ts`. Compact/dark rendering remains covered by tests; no physical mobile client was used.
+- This is a client-only change. No source imports, analysis rules, cache format or model calls were added.

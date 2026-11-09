@@ -17,3 +17,5 @@ German and English are available with saved language selection. The chosen time 
 Anti-pattern info icons explain each rule’s detection criteria and limits on hover, focus or click. Language selection lives in Settings. Project selection includes the project’s associated worktrees.
 
 Date windows select sessions with message activity during the period, including older sessions resumed today. Metrics and rules use only messages inside the window. Timestamped rule features are cached locally, so switching periods does not import unchanged sessions again. Older aggregate-only cache entries need one local upgrade.
+
+The Timeline uses a compact shared activity track with date/time markers across days. Hover, focus or click shows one session's title, time span, origin and project/workspace inline below the track. Analysis opens through a separate action. Overlapping sessions remain reachable through the session selector. The track displays the current paginated history page and includes idle time.

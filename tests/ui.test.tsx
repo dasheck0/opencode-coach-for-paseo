@@ -218,6 +218,7 @@ it.each([[false, false], [true, true]])('resets breadcrumbs on section navigatio
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Browse individual sessions' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Analyze Fixture session' }).props.onPress());
+  await act(async () => r.root.findByProps({ label: 'Selected session' }).props.onValueChange('s2'));
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Analyze Second session' }).props.onPress());
   expect(links()).toEqual(['Return to Dashboard', 'Return to Timeline']);
   for (const section of ['Output', 'Patterns', 'Anti-Patterns', 'Anti-Patterns']) {

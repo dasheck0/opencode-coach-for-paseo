@@ -300,5 +300,12 @@
   "Session details": "Session details",
   "Coach content": "Coach content",
   "Navigation path": "Navigation path",
-  "Return to": "Return to"
+  "Return to": "Return to",
+  "Session activity track": "Session activity track",
+  "Inspect session": "Inspect session",
+  "Selected session": "Selected session",
+  "Hover or select a segment to inspect it below. Open analysis separately. Spans include idle time; very short sessions have a minimum visible width.": "Hover or select a segment to inspect it below. Open analysis separately. Spans include idle time; very short sessions have a minimum visible width.",
+  "Some sessions overlap. Use the session selector to reach every session.": "Some sessions overlap. Use the session selector to reach every session.",
+  "Showing": "Showing",
+  "sessions on this history page. The shared axis spans the selected period in UTC.": "sessions on this history page. The shared axis spans the selected period in UTC."
 }

@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.5.3
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.6.0
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -40,7 +40,7 @@ The native UI follows the reference coach's **Observe / Measure / Improve** navi
 | Area | Page | Current data and behavior |
 | --- | --- | --- |
 | Observe | Dashboard | Four KPI cards, four practice areas, ranked next steps, daily activity bars, top workspaces |
-| Observe | Timeline | Paginated session start/span bars grouped by UTC date, with selected-session evidence above the list |
+| Observe | Timeline | Compact shared multi-day activity track, date/time markers and inline session inspection; analysis opens explicitly |
 | Measure | Output | Historical input/output/cache tokens, recorded costs, models by session, successful edit operations |
 | Measure | Patterns | Work Hours heatmap (7×24 UTC), Calendar activity, Projects breakdown |
 | Improve | Anti-Patterns | Ranked rule findings, frequency, earlier/later rates, recommendations and evidence links |
@@ -118,3 +118,5 @@ Project selection includes the project root and its worktrees, including identif
 Date windows use **message activity**, so a session started weeks ago is included when continued today. Prompt, token, tool and coaching metrics use only messages inside the selected window; details use the same window. Activity charts count active sessions rather than session starts. Trend halves group sessions by their first activity within the window. Existing aggregate-only cache entries receive a one-time local upgrade to timestamped, text-free rule features; later window switches reuse those features.
 
 A clickable breadcrumb above the page header tracks your drill-down path. Select any earlier step to restore its view, scroll position, Patterns tab and session-list page. The current step is plain highlighted text. Selecting a main section in the sidebar (or compact navigation) starts a new root and clears the previous branch. Only in-content drill-down links extend the path; sibling session details replace one another. The path belongs to the open Coach screen and also resets when the provider, source, project selection or period changes; it is not persisted across plugin reloads. Shared filters remain in place while navigating.
+
+The reusable `SessionTimeline` component accepts sessions, optional `from`/`to` bounds, a selected session ID and an `onOpenSession` callback. It has no data-fetching or pagination dependency. Hover, keyboard focus and click inspect a segment inline; clicking **Analyze** opens its report. All sessions on the current history page share one continuous UTC axis, including spans across midnight. Up to four overlap lanes keep height bounded; every session remains available through the session selector. Very short spans have a six-pixel minimum visible width. Activity spans include idle time, and the track covers the current history page, not every page at once.

@@ -136,7 +136,7 @@ function DashboardContent(props: PluginScreenProps) {
         {page === 'patterns' && overviewProps && <PatternsPage {...overviewProps} tab={patternsTab} onTabChange={setPatternsTab} />}
         {page === 'anti-patterns' && overviewProps && <AntiPatternsPage {...overviewProps} />}
         {page === 'context' && overviewProps && <ContextPage {...overviewProps} />}
-        {page === 'timeline' && source && <TimelinePage {...props} sessions={history.data?.sessions ?? []} sessionId={sessionId} onSelect={openSession} offset={offset} onOffset={setOffset} hasMore={!!history.data?.hasMore}
+        {page === 'timeline' && source && <TimelinePage {...props} from={days ? since : undefined} to={until} sessions={history.data?.sessions ?? []} sessionId={sessionId} onSelect={openSession} offset={offset} onOffset={setOffset} hasMore={!!history.data?.hasMore}
           loading={history.isPending} error={history.error?.message} report={report.data} reportLoading={!!sessionId && report.isPending} reportError={report.error?.message} />}
       </>}
       {source && <Text selectable numberOfLines={1} style={{ color: c.foregroundMuted, fontSize: 10 }}>Source: {source.path} · Message activity defines the selected period; metrics count only messages within it.</Text>}

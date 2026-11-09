@@ -300,5 +300,12 @@
   "Session details": "Session-Details",
   "Coach content": "Coach-Inhalt",
   "Navigation path": "Navigationspfad",
-  "Return to": "Zurück zu"
+  "Return to": "Zurück zu",
+  "Session activity track": "Session-Zeitachse",
+  "Inspect session": "Session ansehen",
+  "Selected session": "Ausgewählte Session",
+  "Hover or select a segment to inspect it below. Open analysis separately. Spans include idle time; very short sessions have a minimum visible width.": "Fahre über einen Abschnitt oder wähle ihn aus, um seine Infos darunter zu sehen. Die Analyse öffnest du separat. Zeitspannen enthalten Leerlauf; sehr kurze Sessions haben eine sichtbare Mindestbreite.",
+  "Some sessions overlap. Use the session selector to reach every session.": "Einige Sessions überlappen sich. Über die Session-Auswahl erreichst du jede einzelne.",
+  "Showing": "Anzeige:",
+  "sessions on this history page. The shared axis spans the selected period in UTC.": "Sessions auf dieser Verlaufsseite. Die gemeinsame Zeitachse zeigt den gewählten Zeitraum in UTC."
 }
