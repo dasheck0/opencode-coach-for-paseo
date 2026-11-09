@@ -26,6 +26,7 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 
 - Strict typecheck and 35 tests pass across five files. New tests cover all-session pagination (251 sessions across multiple pages), automatic insights without session clicks, exact/date filters, unchanged-report reuse and timestamp invalidation, overlapping-job read deduplication, provider deactivation during a job, read failures, truncated reports, duplicate findings, rate normalization, unknown usage, and non-advancing adapters.
 - The real Paseo app displayed the automatic overview with ranked priorities, counts, provisional progress, period comparisons, and activity, while the session browser remained closed.
-- The default overview enumerated 665 matching sessions in a real local 30-day window. The exact completed-run result is recorded separately below after verification.
+- The default overview enumerated 665 matching sessions in a real local 30-day window. The full live scan completed: 665 of 665 sessions analyzed, zero unreadable sessions, three reports flagged as incomplete, and eight warning-rule groups. The cold run took about 335 seconds with overlapping desktop and verification requests; this is one local sample, not a performance benchmark.
+- GitHub CI passed on Node 22 and Node 24: https://github.com/dasheck0/opencode-coach-for-paseo/actions/runs/42605679748
 - Added support for common `npm run check` / `pnpm check` verification commands; a recognized command still does not prove passing results.
 - Native compact/dark rendering remains covered by component tests; physical-device verification is still outstanding.
