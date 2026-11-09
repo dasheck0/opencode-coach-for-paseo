@@ -295,5 +295,10 @@
   "Compaction timestamps are unavailable; period compaction counts are omitted.": "Compaction timestamps are unavailable; period compaction counts are omitted.",
   "Analysis is limited to the most recent 100000 messages; this report is incomplete.": "Analysis is limited to the most recent 100000 messages; this report is incomplete.",
   "An invalid message or a record exceeding the 2 MiB record budget was skipped.": "An invalid message or a record exceeding the 2 MiB record budget was skipped.",
-  "No sessions match these filters. Widen the period or clear the project filter.": "No sessions match these filters. Widen the period or clear the project filter."
+  "No sessions match these filters. Widen the period or clear the project filter.": "No sessions match these filters. Widen the period or clear the project filter.",
+  "Back to": "Back to",
+  "Session details": "Session details",
+  "Coach content": "Coach content",
+  "Navigation path": "Navigation path",
+  "Return to": "Return to"
 }

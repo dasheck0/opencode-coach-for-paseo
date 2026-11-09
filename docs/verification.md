@@ -71,3 +71,9 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - After a plugin reload, the 30-day result reused all 65 reports, imported zero sessions and recorded zero cache errors. In daily/weekly runs one concurrently changing session was refreshed; its changed update timestamps were independently confirmed. Unchanged sessions were reused. Repeated polling returns the same job's original import counters, rather than reporting a new import each poll.
 - The native Paseo Dashboard visibly displayed 64 human prompts and the activity-based period description. History returned all three resumed main sessions with activity timestamps inside the requested week. Plugin reload reported running.
 - Existing aggregate-only entries are upgraded locally once to timestamped rule features. No OpenAI/model requests are made and raw conversation/command/output text is not persisted in those features.
+
+## v0.5.2: clickable drill-down breadcrumbs (2026-11-09)
+
+- TypeScript and 65 tests passed locally. Native desktop/light and compact/dark tests cover Dashboard → Anti-Patterns → session evidence and step-by-step return, direct jumps to earlier breadcrumbs, branch truncation, scroll restoration, Patterns tab restoration and session-list pagination. Breadcrumb navigation makes no standalone session analysis request on return to overview pages.
+- Plugin reloaded successfully and reported running. In native Paseo, opened Anti-Patterns from Dashboard, verified the German breadcrumb link “Zurück zu Übersicht”, clicked it, and verified the Dashboard heading and overview returned.
+- Replaced the interim back button and plain path with link-style breadcrumbs separated by ›. Scroll positions are captured before navigation and restored after the destination content layout. History is scoped to the current analysis context and open screen.

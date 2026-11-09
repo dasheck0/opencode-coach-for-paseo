@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
 import { Text, I18nProvider, useI18n } from './i18n';
 import { ProjectPicker } from './project-picker';
 import { viewPreferences, type ViewPreferences } from '../shared/preferences';
@@ -29,6 +29,24 @@ function DashboardContent(props: PluginScreenProps) {
   const workspaceCatalog = useQuery({ queryKey: ['coach', 'workspaces'], queryFn: () => workspaceCall({}), staleTime: 10000 });
   const [until, setUntil] = useState(() => Date.now());
   const [offset, setOffset] = useState(0);
+  const [patternsTab, setPatternsTab] = useState<'Work Hours' | 'Calendar' | 'Projects'>('Work Hours');
+  type Visit = { page: CoachPage; sessionId: string; offset: number; patternsTab: typeof patternsTab; scrollY: number };
+  const [backStack, setBackStack] = useState<Visit[]>([]);
+  const scroll = useRef<ScrollView>(null), scrollY = useRef(0), restoreY = useRef<number | null>(null), viewport = useRef(0);
+  const navigate = (next: CoachPage, nextSession = '') => {
+    if (next === page && nextSession === sessionId) return;
+    const visit = { page, sessionId, offset, patternsTab, scrollY: scrollY.current };
+    setBackStack(stack => [...stack, visit].slice(-100));
+    restoreY.current = 0; scrollY.current = 0;
+    setPage(next); setSessionId(nextSession); if (next !== page) setOffset(0);
+  };
+  const returnTo = (index: number) => {
+    const visit = backStack[index]; if (!visit) return;
+    setBackStack(stack => stack.slice(0, index));
+    restoreY.current = visit.scrollY; scrollY.current = visit.scrollY;
+    setPage(visit.page); setSessionId(visit.sessionId); setOffset(visit.offset); setPatternsTab(visit.patternsTab);
+  };
+  useEffect(() => { if (restoreY.current !== null) scroll.current?.scrollTo({ y: restoreY.current, animated: false }); }, [page, sessionId, offset]);
   const days = view.status === 'ready' ? view.values.days : 30;
   const since = days ? until - days * 86400000 : 0;
   const legacyIds = view.status === 'ready' ? view.values.workspaceIds : [];
@@ -45,8 +63,8 @@ function DashboardContent(props: PluginScreenProps) {
   const providers = catalog.data?.adapters.filter(a => a.enabled && !a.hidden) ?? [];
   const adapter = providers.find(a => a.id === selected);
   const source = adapter?.sources.find(s => s.id === sourceId) ?? adapter?.sources[0];
-  useEffect(() => { setSourceId(''); setSessionId(''); setOffset(0); }, [selected]);
-  useEffect(() => { setSessionId(''); setOffset(0); }, [source?.id, days, filterKey]);
+  useEffect(() => { setSourceId(''); setSessionId(''); setOffset(0); setBackStack([]); }, [selected]);
+  useEffect(() => { setSessionId(''); setOffset(0); setBackStack([]); }, [source?.id, days, filterKey]);
   const history = useQuery({ queryKey: ['coach', 'history', selected, source?.id, since, until, filterKey, origin, offset],
     queryFn: () => historyCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin, limit: 50, offset }), enabled: !!source && filterReady && view.status === 'ready' && page === 'timeline' });
   const overview = useQuery({ queryKey: ['coach', 'overview', selected, source?.id, since, until, filterKey, origin],
@@ -54,9 +72,11 @@ function DashboardContent(props: PluginScreenProps) {
     refetchInterval: query => query.state.data?.status === 'complete' || query.state.data?.status === 'error' ? false : 1500 });
   const report = useQuery({ queryKey: ['coach', 'report', selected, source?.id, sessionId, origin, since, until],
     queryFn: () => analyzeCall({ adapterId: selected, sourceId: source!.id, sessionId, origin, from: days ? since : undefined, to: until }), enabled: !!source && !!sessionId && page === 'timeline' });
-  const openSession = (id: string) => { setSessionId(id); setPage('timeline'); };
-  const overviewProps = overview.data ? { ...props, data: overview.data, onOpenSession: openSession, onNavigate: setPage } : null;
+  const openSession = (id: string) => navigate('timeline', id);
+  const overviewProps = overview.data ? { ...props, data: overview.data, onOpenSession: openSession, onNavigate: (next: CoachPage) => navigate(next) } : null;
   const current = pages.find(p => p.id === page)!;
+  const visitTitle = (visit: Pick<Visit, 'page' | 'sessionId'>) => visit.sessionId ? t('Session details') : t(pages.find(p => p.id === visit.page)!.title);
+  const trail = [...backStack, { page, sessionId }];
   const saveView = (patch: Partial<ViewPreferences>) => { if (view.status === 'ready') void view.save({ ...view.values, ...patch }, view.revision); };
   const providerFilters = <View style={{ gap: 10 }}>
     <Text style={{ color: c.foregroundMuted, fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>HARNESS / PROVIDER</Text>
@@ -67,8 +87,23 @@ function DashboardContent(props: PluginScreenProps) {
     <Text style={{ color: c.foregroundMuted, fontSize: 10 }}>Local rules · No API costs</Text>
   </View>;
   return <View style={{ flex: 1, width: '100%', height: '100%', minWidth: 0, alignSelf: 'stretch', flexDirection: layout.compact ? 'column' : 'row', backgroundColor: c.surface0 }}>
-    {layout.compact ? <Navigation {...props} page={page} onChange={setPage} /> : <View style={{ width: 220, backgroundColor: c.surface1, borderRightWidth: 1, borderColor: c.border }}><Navigation {...props} page={page} onChange={setPage} /><View style={{ padding: 16, gap: 10, borderTopWidth: 1, borderColor: c.border }}>{providerFilters}</View></View>}
-    <ScrollView style={{ flex: 1, minWidth: 0 }} contentContainerStyle={{ padding: layout.compact ? 16 : 28, gap: 18, maxWidth: 1480, width: '100%', alignSelf: 'center' }}>
+    {layout.compact ? <Navigation {...props} page={page} onChange={next => navigate(next)} /> : <View style={{ width: 220, backgroundColor: c.surface1, borderRightWidth: 1, borderColor: c.border }}><Navigation {...props} page={page} onChange={next => navigate(next)} /><View style={{ padding: 16, gap: 10, borderTopWidth: 1, borderColor: c.border }}>{providerFilters}</View></View>}
+    <ScrollView ref={scroll} accessibilityLabel={t('Coach content')}
+      onLayout={event => { viewport.current = event.nativeEvent.layout.height; }}
+      onScroll={event => { if (restoreY.current === null) scrollY.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={32}
+      onScrollBeginDrag={() => { restoreY.current = null; }}
+      onContentSizeChange={(_width, height) => { if (restoreY.current !== null) {
+        scroll.current?.scrollTo({ y: restoreY.current, animated: false });
+        if (height >= restoreY.current + viewport.current) { scrollY.current = restoreY.current; restoreY.current = null; }
+      } }} style={{ flex: 1, minWidth: 0 }} contentContainerStyle={{ padding: layout.compact ? 16 : 28, gap: 18, maxWidth: 1480, width: '100%', alignSelf: 'center' }}>
+      <ScrollView horizontal accessibilityLabel={t('Navigation path')} style={{ flexGrow: 0 }} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {trail.map((visit, index) => <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {index > 0 && <Text style={{ color: c.foregroundMuted, fontSize: 14 }}>›</Text>}
+          {index < backStack.length ? <Pressable accessibilityRole="link" accessibilityLabel={`${t('Return to')} ${visitTitle(visit)}`} onPress={() => returnTo(index)} style={{ paddingVertical: 6, paddingHorizontal: 2 }}>
+            <Text style={{ color: c.accent, fontSize: 12 }}>{visitTitle(visit)}</Text>
+          </Pressable> : <Text accessibilityRole="text" style={{ color: c.foreground, fontSize: 12, fontWeight: '600' }}>{visitTitle(visit)}</Text>}
+        </View>)}
+      </ScrollView>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ gap: 5 }}><Text style={{ color: c.foregroundMuted, fontSize: 11 }}>{current.group} / OpenCode Coach</Text><Text accessibilityRole="header" style={{ color: c.foreground, fontSize: 28, fontWeight: '700' }}>{current.title}</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>{current.description}</Text></View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{[7, 30, 90, 0].map(n => <Action key={n} {...props} label={n ? `${n} days` : 'All history'} selected={n === days} onPress={() => { const now = Date.now(); saveView({ days: n as 0 | 7 | 30 | 90 }); setUntil(now); }} />)}<Action {...props} label="Refresh" onPress={() => { setUntil(Date.now()); void catalog.refetch(); if (sessionId) void report.refetch(); }} /></View>
@@ -86,9 +121,9 @@ function DashboardContent(props: PluginScreenProps) {
         {overview.isPending && source && <Text style={{ color: c.foregroundMuted }}>Preparing your coaching overview…</Text>}
         {overview.error && <Text style={{ color: c.statusDanger }}>{overview.error.message}</Text>}
         {overviewProps && <AnalysisStatus {...overviewProps} />}
-        {page === 'dashboard' && overviewProps && <><OverviewPanel {...overviewProps} /><Action {...props} label="Browse individual sessions" onPress={() => setPage('timeline')} /></>}
+        {page === 'dashboard' && overviewProps && <><OverviewPanel {...overviewProps} /><Action {...props} label="Browse individual sessions" onPress={() => navigate('timeline')} /></>}
         {page === 'output' && overviewProps && <OutputPage {...overviewProps} />}
-        {page === 'patterns' && overviewProps && <PatternsPage {...overviewProps} />}
+        {page === 'patterns' && overviewProps && <PatternsPage {...overviewProps} tab={patternsTab} onTabChange={setPatternsTab} />}
         {page === 'anti-patterns' && overviewProps && <AntiPatternsPage {...overviewProps} />}
         {page === 'context' && overviewProps && <ContextPage {...overviewProps} />}
         {page === 'timeline' && source && <TimelinePage {...props} sessions={history.data?.sessions ?? []} sessionId={sessionId} onSelect={openSession} offset={offset} onOffset={setOffset} hasMore={!!history.data?.hasMore}

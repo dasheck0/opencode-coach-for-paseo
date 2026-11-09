@@ -295,5 +295,10 @@
   "Compaction timestamps are unavailable; period compaction counts are omitted.": "Zeitstempel der Kontextverdichtungen fehlen; sie werden im Zeitraum nicht gezählt.",
   "Analysis is limited to the most recent 100000 messages; this report is incomplete.": "Die Auswertung ist auf die jüngsten 100000 Nachrichten begrenzt; dieser Bericht ist unvollständig.",
   "An invalid message or a record exceeding the 2 MiB record budget was skipped.": "Eine ungültige Nachricht oder ein Datensatz über 2 MiB wurde übersprungen.",
-  "No sessions match these filters. Widen the period or clear the project filter.": "Keine Sessions passen zu diesen Filtern. Erweitere den Zeitraum oder entferne den Projektfilter."
+  "No sessions match these filters. Widen the period or clear the project filter.": "Keine Sessions passen zu diesen Filtern. Erweitere den Zeitraum oder entferne den Projektfilter.",
+  "Back to": "Zurück zu",
+  "Session details": "Session-Details",
+  "Coach content": "Coach-Inhalt",
+  "Navigation path": "Navigationspfad",
+  "Return to": "Zurück zu"
 }

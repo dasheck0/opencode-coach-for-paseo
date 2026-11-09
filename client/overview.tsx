@@ -89,9 +89,9 @@ export function OutputPage(props: OverviewProps) {
   </Panel><Panel {...props} title="Edit Activity"><Text style={{ color: c.foreground }}>{m.edits} successful edit operations across {m.editingSessions} sessions.</Text><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>These logs do not provide reliable generated-code line totals. Edit calls are not lines of code.</Text></Panel>
   <Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Usage recorded in {m.usageSessions}/{data.analyzed} sessions; cost recorded in {m.costSessions}/{data.analyzed}. These are historical session costs, not Coach charges. A session using multiple models appears in multiple model rows.</Text></View>;
 }
-export function PatternsPage(props: OverviewProps) {
+export function PatternsPage(props: OverviewProps & { tab: 'Work Hours' | 'Calendar' | 'Projects'; onTabChange: (tab: 'Work Hours' | 'Calendar' | 'Projects') => void }) {
   const { data, theme, layout } = props, c = theme.colors;
-  const [tab, setTab] = useState<'Work Hours' | 'Calendar' | 'Projects'>('Work Hours');
+  const { tab, onTabChange: setTab } = props;
   const peak = Math.max(1, ...data.breakdown.hours);
   return <View style={{ gap: 16 }}><View style={{ flexDirection: 'row', gap: 8 }}>{(['Work Hours', 'Calendar', 'Projects'] as const).map(t => <Action key={t} {...props} label={t} selected={tab === t} onPress={() => setTab(t)} />)}</View>
     {tab === 'Work Hours' && <Panel {...props} title="Sessions by Day and Hour"><Text style={{ color: c.foregroundMuted, fontSize: 12 }}>Session activity in UTC. Each session counts once per active hour; this is not a work-life score.</Text><View style={{ flexDirection: 'row', marginLeft: 35 }}>{[0, 6, 12, 18].map(h => <Text key={h} style={{ color: c.foregroundMuted, fontSize: 10, flex: 1 }}>{h}:00</Text>)}</View>

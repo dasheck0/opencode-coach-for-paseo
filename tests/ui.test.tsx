@@ -5,7 +5,7 @@ import type { ViewPreferences } from '../shared/preferences';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const mocks = vi.hoisted(() => ({
   save: vi.fn(async () => true), values: { disabled: [] as string[], hidden: [] as string[], selected: 'opencode-v2', paths: {} },
-  catalog: vi.fn(), history: vi.fn(), analyze: vi.fn(), overview: vi.fn(), workspaces: vi.fn(), saveView: vi.fn(async (_values: unknown, _revision: string) => true),
+  scrollTo: vi.fn(), catalog: vi.fn(), history: vi.fn(), analyze: vi.fn(), overview: vi.fn(), workspaces: vi.fn(), saveView: vi.fn(async (_values: unknown, _revision: string) => true),
   view: { language: 'en', days: 30, projectIds: [], workspaceIds: [], origins: { dashboard: 'human', timeline: 'all', output: 'all', patterns: 'all', 'anti-patterns': 'human', context: 'all' } } as ViewPreferences,
 }));
 vi.mock('react-native', () => ({ View: 'View', Text: 'Text', Pressable: 'Pressable', ScrollView: 'ScrollView', TextInput: 'TextInput' }));
@@ -30,7 +30,7 @@ async function render(Component: typeof Dashboard | typeof CoachSettings, p: Plu
   (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   let r!: ReactTestRenderer;
-  await act(async () => { r = create(createElement(QueryClientProvider, { client }, createElement(Component, p))); }); mounted.push(r);
+  await act(async () => { r = create(createElement(QueryClientProvider, { client }, createElement(Component, p)), { createNodeMock: element => element.type === 'ScrollView' ? { scrollTo: mocks.scrollTo } : null }); }); mounted.push(r);
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   return r;
 }
@@ -147,4 +147,59 @@ it('migrates saved workspace choices to their projects while preserving other pr
   setup(); mocks.view.workspaceIds = ['w1', 'w2']; mocks.view.days = 7;
   await render(Dashboard, props(false, false));
   expect(mocks.saveView).toHaveBeenCalledWith({ ...mocks.view, projectIds: ['p1'], workspaceIds: [] }, 'r1');
+});
+
+it.each([[false, false], [true, true]])('reverses the evidence drill-down step by step with its scroll position (%s,%s)', async (compact, dark) => {
+  setup(); const overview = new OverviewAccumulator({ adapterId: 'opencode-v2', sourceId: 'db', to: Date.now() }).snapshot();
+  overview.status = 'complete'; overview.matched = overview.analyzed = 1;
+  overview.insights = [{ rule: 'verification-gap', title: 'Verify after editing', advice: 'Run checks', affectedSessions: 1, percentage: 100,
+    earlierPercentage: null, laterPercentage: null, changePoints: null, examples: [{ sessionId: 's', title: 'Fixture session' }] }];
+  mocks.overview.mockResolvedValue(overview);
+  const r = await render(Dashboard, props(compact, dark));
+  const content = () => r.root.findByProps({ accessibilityLabel: 'Coach content' });
+  await act(async () => content().props.onScroll({ nativeEvent: { contentOffset: { y: 240 } } }));
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'View All Anti-Patterns' }).props.onPress());
+  await act(async () => content().props.onContentSizeChange(1000, 2000));
+  await act(async () => content().props.onScroll({ nativeEvent: { contentOffset: { y: 650 } } }));
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Open evidence: Fixture session' }).props.onPress());
+  expect(r.root.findAllByProps({ accessibilityRole: 'link' }).map(n => n.props.accessibilityLabel)).toEqual(['Return to Dashboard', 'Return to Anti-Patterns']);
+  const calls = mocks.analyze.mock.calls.length;
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Anti-Patterns' }).props.onPress());
+  expect(JSON.stringify(r.toJSON())).toContain('Ranked by affected sessions.');
+  expect(mocks.scrollTo).toHaveBeenLastCalledWith({ y: 650, animated: false });
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Dashboard' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  expect(JSON.stringify(r.toJSON())).toContain('Your coaching overview');
+  expect(mocks.scrollTo).toHaveBeenLastCalledWith({ y: 240, animated: false });
+  expect(r.root.findAllByProps({ accessibilityRole: 'link' })).toHaveLength(0);
+  expect(mocks.analyze.mock.calls.length).toBe(calls);
+});
+it('restores the patterns tab and paginated session list when returning from details', async () => {
+  setup(); mocks.history.mockResolvedValue({ sessions: [summary], hasMore: true }); const r = await render(Dashboard, props(false, false));
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Patterns' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Calendar' }).props.onPress());
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Timeline' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Next' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Analyze Fixture session' }).props.onPress());
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Timeline' }).props.onPress());
+  expect(mocks.history).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 50 }));
+  expect(r.root.findAllByProps({ accessibilityLabel: 'Return to Session details' })).toHaveLength(0);
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Patterns' }).props.onPress());
+  expect(JSON.stringify(r.toJSON())).toContain('Calendar Activity');
+  expect(r.root.findByProps({ accessibilityLabel: 'Calendar' }).props.accessibilityState.selected).toBe(true);
+});
+
+it('lets a breadcrumb skip directly to an earlier visit and discards the abandoned branch', async () => {
+  setup(); const r = await render(Dashboard, props(false, false));
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Patterns' }).props.onPress());
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Output' }).props.onPress());
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Dashboard' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  expect(JSON.stringify(r.toJSON())).toContain('Your coaching overview');
+  expect(r.root.findAllByProps({ accessibilityRole: 'link' })).toHaveLength(0);
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Anti-Patterns' }).props.onPress());
+  expect(r.root.findAllByProps({ accessibilityRole: 'link' }).map(n => n.props.accessibilityLabel)).toEqual(['Return to Dashboard']);
 });

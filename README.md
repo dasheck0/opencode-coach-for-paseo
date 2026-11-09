@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.5.1
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.5.2
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -116,3 +116,5 @@ MIT. Independent of Microsoft, OpenCode, and Paseo.
 Project selection includes the project root and its worktrees, including identifiable historical worktrees. The dropdown uses Paseo’s project list, including projects without active workspaces. Existing saved workspace selections migrate to their projects. Language selection is available only in Settings. Each anti-pattern has an info popover explaining its exact detection criteria and limitations; hover, keyboard focus and click/touch are supported.
 
 Date windows use **message activity**, so a session started weeks ago is included when continued today. Prompt, token, tool and coaching metrics use only messages inside the selected window; details use the same window. Activity charts count active sessions rather than session starts. Trend halves group sessions by their first activity within the window. Existing aggregate-only cache entries receive a one-time local upgrade to timestamped, text-free rule features; later window switches reuse those features.
+
+A clickable breadcrumb above the page header tracks your drill-down path. Select any earlier step to restore its view, scroll position, Patterns tab and session-list page. The current step is plain highlighted text. The path belongs to the open Coach screen and resets when the provider, source, project selection or period changes; it is not persisted across plugin reloads. Shared filters remain in place while navigating.
