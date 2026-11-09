@@ -1,0 +1,54 @@
+{
+  "name": "opencode-coach-for-paseo",
+  "private": true,
+  "version": "0.1.0",
+  "files": [
+    "paseo-plugin.json",
+    "OVERVIEW.md",
+    "OVERVIEW.*.md",
+    "index.client.ts",
+    "index.client.tsx",
+    "index.server.ts",
+    "index.server.tsx",
+    "client/",
+    "server/",
+    "shared/",
+    "LICENSE",
+    "NOTICE",
+    "licenses/",
+    "docs/"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test",
+    "coach": "tsx server/cli.ts"
+  },
+  "devDependencies": {
+    "@getpaseo/client": "^0.15.3",
+    "@getpaseo/plugin": "0.15.3",
+    "@getpaseo/protocol": "^0.15.3",
+    "@tanstack/react-query": "^5.90.11",
+    "@types/node": "^22.20.5",
+    "@types/react": "~19.2.0",
+    "@types/react-test-renderer": "^19.3.1",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-test-renderer": "^19.1.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12",
+    "zod": "^4.4.3"
+  },
+  "type": "module",
+  "description": "Native Paseo plugin for local OpenCode V2 session analytics and evidence-based coaching",
+  "license": "MIT",
+  "author": "dasheck0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dasheck0/opencode-coach-for-paseo.git"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

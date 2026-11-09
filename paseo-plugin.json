@@ -1,0 +1,8 @@
+{
+  "id": "opencode-coach-for-paseo",
+  "media": [],
+  "requirements": {
+    "paseo": ">=0.15.3"
+  },
+  "name": "OpenCode Coach"
+}

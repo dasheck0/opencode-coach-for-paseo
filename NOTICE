@@ -1,0 +1,18 @@
+OpenCode Coach for Paseo
+Copyright (c) 2026 dasheck0. Licensed under MIT.
+
+This independent implementation was informed by Microsoft's AI Engineering Coach:
+https://github.com/microsoft/AI-Engineering-Coach
+Reference revision: c5cfba17e732f100b4322f5c9c2116063d7e4ac4
+Reviewed source: src/core/parser-opencode.ts and the project README.
+
+The local session analysis concept and older OpenCode SQLite layout were studied
+there. No Microsoft implementation, rule files, UI, assets, or runtime dependency
+are incorporated. The V2 reader, normalized model, coaching rules, service and
+Paseo UI in this repository are newly written. The reference project's MIT
+license is preserved in licenses/microsoft-ai-engineering-coach-MIT.txt as an
+attribution record. This project is not affiliated with Microsoft or Paseo.
+
+If future contributions adapt Microsoft code, preserve the original copyright
+header and identify the exact source file and revision here, together with its
+MIT license. Do not replace upstream copyright with this project's copyright.

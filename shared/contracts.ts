@@ -1,0 +1,28 @@
+import { defineRpc, defineSettings } from '@getpaseo/plugin';
+import { z } from 'zod';
+import { reportSchema, sourceSchema, summarySchema } from './model';
+
+// New adapter IDs require no changes here or in the UI.
+export const preferences = defineSettings({
+  id: 'providers', scope: 'host', version: 1,
+  schema: z.object({
+    disabled: z.array(z.string()).default([]),
+    hidden: z.array(z.string()).default([]),
+    selected: z.string().default('opencode-v2'),
+    paths: z.record(z.string(), z.array(z.string().min(1))).default({}),
+  }),
+});
+export const catalogRpc = defineRpc({ name: 'coach.catalog', input: z.object({}), output: z.object({
+  adapters: z.array(z.object({ id: z.string(), title: z.string(), description: z.string(),
+    enabled: z.boolean(), hidden: z.boolean(), sources: z.array(sourceSchema), error: z.string().nullable(),
+  })),
+}) });
+export const historyRpc = defineRpc({ name: 'coach.history', input: z.object({
+  adapterId: z.string(), sourceId: z.string(), from: z.number().optional(), to: z.number().optional(),
+  directory: z.string().optional(), limit: z.number().int().min(1).max(100).default(50),
+  offset: z.number().int().min(0).max(1000000).default(0),
+}).refine(x => x.from === undefined || x.to === undefined || x.from <= x.to, 'Start must precede end'),
+output: z.object({ sessions: z.array(summarySchema), hasMore: z.boolean() }) });
+export const analyzeRpc = defineRpc({ name: 'coach.analyze', input: z.object({
+  adapterId: z.string(), sourceId: z.string(), sessionId: z.string().min(1).max(300),
+}), output: reportSchema });
