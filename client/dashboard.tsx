@@ -35,8 +35,13 @@ function DashboardContent(props: PluginScreenProps) {
   const scroll = useRef<ScrollView>(null), scrollY = useRef(0), restoreY = useRef<number | null>(null), viewport = useRef(0);
   const navigate = (next: CoachPage, nextSession = '') => {
     if (next === page && nextSession === sessionId) return;
-    const visit = { page, sessionId, offset, patternsTab, scrollY: scrollY.current };
-    setBackStack(stack => [...stack, visit].slice(-100));
+    const ancestor = backStack.findIndex(visit => visit.page === next && visit.sessionId === nextSession);
+    if (ancestor >= 0) { returnTo(ancestor); return; }
+    // Another session is a sibling detail, not a deeper level.
+    if (!(page === 'timeline' && sessionId && next === 'timeline' && nextSession)) {
+      const visit = { page, sessionId, offset, patternsTab, scrollY: scrollY.current };
+      setBackStack(stack => [...stack, visit]);
+    }
     restoreY.current = 0; scrollY.current = 0;
     setPage(next); setSessionId(nextSession); if (next !== page) setOffset(0);
   };
@@ -45,6 +50,11 @@ function DashboardContent(props: PluginScreenProps) {
     setBackStack(stack => stack.slice(0, index));
     restoreY.current = visit.scrollY; scrollY.current = visit.scrollY;
     setPage(visit.page); setSessionId(visit.sessionId); setOffset(visit.offset); setPatternsTab(visit.patternsTab);
+  };
+  const openSection = (next: CoachPage) => {
+    setBackStack([]); setPage(next); setSessionId(''); setOffset(0);
+    restoreY.current = 0; scrollY.current = 0;
+    scroll.current?.scrollTo({ y: 0, animated: false });
   };
   useEffect(() => { if (restoreY.current !== null) scroll.current?.scrollTo({ y: restoreY.current, animated: false }); }, [page, sessionId, offset]);
   const days = view.status === 'ready' ? view.values.days : 30;
@@ -87,7 +97,7 @@ function DashboardContent(props: PluginScreenProps) {
     <Text style={{ color: c.foregroundMuted, fontSize: 10 }}>Local rules · No API costs</Text>
   </View>;
   return <View style={{ flex: 1, width: '100%', height: '100%', minWidth: 0, alignSelf: 'stretch', flexDirection: layout.compact ? 'column' : 'row', backgroundColor: c.surface0 }}>
-    {layout.compact ? <Navigation {...props} page={page} onChange={next => navigate(next)} /> : <View style={{ width: 220, backgroundColor: c.surface1, borderRightWidth: 1, borderColor: c.border }}><Navigation {...props} page={page} onChange={next => navigate(next)} /><View style={{ padding: 16, gap: 10, borderTopWidth: 1, borderColor: c.border }}>{providerFilters}</View></View>}
+    {layout.compact ? <Navigation {...props} page={page} onChange={openSection} /> : <View style={{ width: 220, backgroundColor: c.surface1, borderRightWidth: 1, borderColor: c.border }}><Navigation {...props} page={page} onChange={openSection} /><View style={{ padding: 16, gap: 10, borderTopWidth: 1, borderColor: c.border }}>{providerFilters}</View></View>}
     <ScrollView ref={scroll} accessibilityLabel={t('Coach content')}
       onLayout={event => { viewport.current = event.nativeEvent.layout.height; }}
       onScroll={event => { if (restoreY.current === null) scrollY.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={32}

@@ -165,6 +165,7 @@ it.each([[false, false], [true, true]])('reverses the evidence drill-down step b
   expect(r.root.findAllByProps({ accessibilityRole: 'link' }).map(n => n.props.accessibilityLabel)).toEqual(['Return to Dashboard', 'Return to Anti-Patterns']);
   const calls = mocks.analyze.mock.calls.length;
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Anti-Patterns' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(JSON.stringify(r.toJSON())).toContain('Ranked by affected sessions.');
   expect(mocks.scrollTo).toHaveBeenLastCalledWith({ y: 650, animated: false });
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Dashboard' }).props.onPress());
@@ -187,19 +188,37 @@ it('restores the patterns tab and paginated session list when returning from det
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Timeline' }).props.onPress());
   expect(mocks.history).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 50 }));
   expect(r.root.findAllByProps({ accessibilityLabel: 'Return to Session details' })).toHaveLength(0);
-  await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Patterns' }).props.onPress());
+  expect(r.root.findAllByProps({ accessibilityRole: 'link' })).toHaveLength(0);
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Patterns' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(JSON.stringify(r.toJSON())).toContain('Calendar Activity');
   expect(r.root.findByProps({ accessibilityLabel: 'Calendar' }).props.accessibilityState.selected).toBe(true);
 });
 
 it('lets a breadcrumb skip directly to an earlier visit and discards the abandoned branch', async () => {
   setup(); const r = await render(Dashboard, props(false, false));
-  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Patterns' }).props.onPress());
-  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Output' }).props.onPress());
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Browse individual sessions' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Analyze Fixture session' }).props.onPress());
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Dashboard' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(JSON.stringify(r.toJSON())).toContain('Your coaching overview');
   expect(r.root.findAllByProps({ accessibilityRole: 'link' })).toHaveLength(0);
-  await act(async () => r.root.findByProps({ accessibilityLabel: 'Navigate to Anti-Patterns' }).props.onPress());
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'View All Anti-Patterns' }).props.onPress());
   expect(r.root.findAllByProps({ accessibilityRole: 'link' }).map(n => n.props.accessibilityLabel)).toEqual(['Return to Dashboard']);
+});
+
+it.each([[false, false], [true, true]])('resets breadcrumbs on section navigation instead of collecting browsing history (%s,%s)', async (compact, dark) => {
+  setup(); mocks.history.mockResolvedValue({ sessions: [summary, { ...summary, id: 's2', title: 'Second session' }], hasMore: false });
+  const r = await render(Dashboard, props(compact, dark));
+  const links = () => r.root.findAllByProps({ accessibilityRole: 'link' }).map(n => n.props.accessibilityLabel);
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Browse individual sessions' }).props.onPress());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Analyze Fixture session' }).props.onPress());
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Analyze Second session' }).props.onPress());
+  expect(links()).toEqual(['Return to Dashboard', 'Return to Timeline']);
+  for (const section of ['Output', 'Patterns', 'Anti-Patterns', 'Anti-Patterns']) {
+    await act(async () => r.root.findByProps({ accessibilityLabel: `Navigate to ${section}` }).props.onPress());
+    expect(links()).toEqual([]);
+  }
 });

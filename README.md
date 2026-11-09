@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.5.2
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.5.3
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -117,4 +117,4 @@ Project selection includes the project root and its worktrees, including identif
 
 Date windows use **message activity**, so a session started weeks ago is included when continued today. Prompt, token, tool and coaching metrics use only messages inside the selected window; details use the same window. Activity charts count active sessions rather than session starts. Trend halves group sessions by their first activity within the window. Existing aggregate-only cache entries receive a one-time local upgrade to timestamped, text-free rule features; later window switches reuse those features.
 
-A clickable breadcrumb above the page header tracks your drill-down path. Select any earlier step to restore its view, scroll position, Patterns tab and session-list page. The current step is plain highlighted text. The path belongs to the open Coach screen and resets when the provider, source, project selection or period changes; it is not persisted across plugin reloads. Shared filters remain in place while navigating.
+A clickable breadcrumb above the page header tracks your drill-down path. Select any earlier step to restore its view, scroll position, Patterns tab and session-list page. The current step is plain highlighted text. Selecting a main section in the sidebar (or compact navigation) starts a new root and clears the previous branch. Only in-content drill-down links extend the path; sibling session details replace one another. The path belongs to the open Coach screen and also resets when the provider, source, project selection or period changes; it is not persisted across plugin reloads. Shared filters remain in place while navigating.

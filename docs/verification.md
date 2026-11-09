@@ -77,3 +77,9 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - TypeScript and 65 tests passed locally. Native desktop/light and compact/dark tests cover Dashboard → Anti-Patterns → session evidence and step-by-step return, direct jumps to earlier breadcrumbs, branch truncation, scroll restoration, Patterns tab restoration and session-list pagination. Breadcrumb navigation makes no standalone session analysis request on return to overview pages.
 - Plugin reloaded successfully and reported running. In native Paseo, opened Anti-Patterns from Dashboard, verified the German breadcrumb link “Zurück zu Übersicht”, clicked it, and verified the Dashboard heading and overview returned.
 - Replaced the interim back button and plain path with link-style breadcrumbs separated by ›. Scroll positions are captured before navigation and restored after the destination content layout. History is scoped to the current analysis context and open screen.
+
+## v0.5.3: scope breadcrumbs to the drill-down branch (2026-11-09)
+
+- TypeScript and 67 tests passed locally, including desktop/light and compact/dark regression cases for section switches resetting the path, reselecting the current section, peer session details replacing each other, direct breadcrumb jumps, scroll restoration and paginated session-list return.
+- Sidebar and compact navigation start a new root; only in-content drill-down actions extend the path. Returning to an ancestor truncates the branch and cannot create cycles. Global analysis filters are preserved.
+- The installed plugin reloaded successfully and reported running. Native interaction was not repeated because the user's active window had moved away from the Coach; behavior is covered by component interaction tests.
