@@ -166,7 +166,10 @@ it.each([[false, false], [true, true]])('reverses the evidence drill-down step b
   const calls = mocks.analyze.mock.calls.length;
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Anti-Patterns' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
-  expect(JSON.stringify(r.toJSON())).toContain('Ranked by affected sessions.');
+  await vi.waitFor(async () => {
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    expect(JSON.stringify(r.toJSON())).toContain('Ranked by affected sessions.');
+  });
   expect(mocks.scrollTo).toHaveBeenLastCalledWith({ y: 650, animated: false });
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Return to Dashboard' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
