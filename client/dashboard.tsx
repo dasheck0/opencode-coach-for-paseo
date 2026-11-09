@@ -29,6 +29,7 @@ function DashboardContent(props: PluginScreenProps) {
   const workspaceCatalog = useQuery({ queryKey: ['coach', 'workspaces'], queryFn: () => workspaceCall({}), staleTime: 10000 });
   const [until, setUntil] = useState(() => Date.now());
   const [offset, setOffset] = useState(0);
+  const [focusSessionId, setFocusSessionId] = useState<string | undefined>();
   const [patternsTab, setPatternsTab] = useState<'Work Hours' | 'Calendar' | 'Projects'>('Work Hours');
   type Visit = { page: CoachPage; sessionId: string; offset: number; patternsTab: typeof patternsTab; scrollY: number };
   const [backStack, setBackStack] = useState<Visit[]>([]);
@@ -42,7 +43,8 @@ function DashboardContent(props: PluginScreenProps) {
       const visit = { page, sessionId, offset, patternsTab, scrollY: scrollY.current };
       setBackStack(stack => [...stack, visit]);
     }
-    restoreY.current = 0; scrollY.current = 0;
+    restoreY.current = next === page ? scrollY.current : 0;
+    if (next !== page) scrollY.current = 0;
     setPage(next); setSessionId(nextSession); if (next !== page) setOffset(0);
   };
   const returnTo = (index: number) => {
@@ -77,16 +79,16 @@ function DashboardContent(props: PluginScreenProps) {
   useEffect(() => { setSourceId(''); setSessionId(''); setOffset(0); setBackStack([]); }, [selected]);
   useEffect(() => { setSessionId(''); setOffset(0); setBackStack([]); }, [source?.id, days, filterKey, historyPageSize]);
   const historyBase = ['coach', 'history', selected, source?.id, since, until, filterKey, origin];
-  const history = useQuery({ queryKey: [...historyBase, historyPageSize, offset],
-    placeholderData: (previous, query) => JSON.stringify(query?.queryKey.slice(0, -2)) === JSON.stringify(historyBase) ? previous : undefined,
-    queryFn: () => historyCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin, limit: historyPageSize, offset, groupBy: 'workspace' }), enabled: !!source && filterReady && view.status === 'ready' && page === 'timeline' });
-  useEffect(() => { if (history.data && !history.isPlaceholderData && history.data.offset !== offset) setOffset(history.data.offset); }, [history.data, history.isPlaceholderData]);
+  const history = useQuery({ queryKey: [...historyBase, historyPageSize, offset, focusSessionId],
+    placeholderData: (previous, query) => JSON.stringify(query?.queryKey.slice(0, historyBase.length)) === JSON.stringify(historyBase) ? previous : undefined,
+    queryFn: () => historyCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin, limit: historyPageSize, offset, groupBy: 'workspace', focusSessionId }), enabled: !!source && filterReady && view.status === 'ready' && page === 'timeline' });
+  useEffect(() => { if (history.data && !history.isPlaceholderData) { if (history.data.offset !== offset) setOffset(history.data.offset); if (focusSessionId) setFocusSessionId(undefined); } }, [history.data, history.isPlaceholderData]);
   const overview = useQuery({ queryKey: ['coach', 'overview', selected, source?.id, since, until, filterKey, origin],
     queryFn: () => overviewCall({ adapterId: selected, sourceId: source!.id, from: days ? since : undefined, to: until, projectIds, origin }), enabled: !!source && filterReady && view.status === 'ready', retry: false,
     refetchInterval: query => query.state.data?.status === 'complete' || query.state.data?.status === 'error' ? false : 1500 });
   const report = useQuery({ queryKey: ['coach', 'report', selected, source?.id, sessionId, origin, since, until],
     queryFn: () => analyzeCall({ adapterId: selected, sourceId: source!.id, sessionId, origin, from: days ? since : undefined, to: until }), enabled: !!source && !!sessionId && page === 'timeline' });
-  const openSession = (id: string) => navigate('timeline', id);
+  const openSession = (id: string) => { if (!history.data?.sessions.some(s => s.id === id)) setFocusSessionId(id); navigate('timeline', id); };
   const overviewProps = overview.data ? { ...props, data: overview.data, onOpenSession: openSession, onNavigate: (next: CoachPage) => navigate(next) } : null;
   const current = pages.find(p => p.id === page)!;
   const visitTitle = (visit: Pick<Visit, 'page' | 'sessionId'>) => visit.sessionId ? t('Session details') : t(pages.find(p => p.id === visit.page)!.title);
@@ -141,7 +143,7 @@ function DashboardContent(props: PluginScreenProps) {
         {page === 'anti-patterns' && overviewProps && <AntiPatternsPage {...overviewProps} />}
         {page === 'context' && overviewProps && <ContextPage {...overviewProps} />}
         {page === 'timeline' && source && <TimelinePage {...props} from={days ? since : undefined} to={until} sessions={history.data?.sessions ?? []} sessionId={sessionId} onSelect={openSession} offset={offset} onOffset={value => { setOffset(value); setSessionId(''); if (sessionId && backStack.at(-1)?.page === 'timeline' && !backStack.at(-1)?.sessionId) setBackStack(stack => stack.slice(0, -1)); restoreY.current = 0; scrollY.current = 0; scroll.current?.scrollTo({ y: 0, animated: false }); }} total={history.data?.total ?? 0} totalSessions={history.data?.totalSessions ?? 0} pageSize={historyPageSize} onPageSize={size => { setOffset(0); saveView({ historyPageSize: size as 5 | 10 | 25 }); }}
-          loading={history.isFetching} error={history.error?.message} report={report.data} reportLoading={!!sessionId && report.isPending} reportError={report.error?.message} />}
+          loading={history.isPending} pageLoading={history.isFetching} error={history.error?.message} report={report.data} reportLoading={!!sessionId && report.isPending} reportError={report.error?.message} />}
       </>}
       {source && <Text selectable numberOfLines={1} style={{ color: c.foregroundMuted, fontSize: 10 }}>Source: {source.path} · Message activity defines the selected period; metrics count only messages within it.</Text>}
     </ScrollView>

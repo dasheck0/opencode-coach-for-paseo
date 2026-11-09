@@ -34,18 +34,18 @@ it.each([[false, 'en'], [true, 'de']] as const)('inspects inline on hover/focus/
   const onOpenSession = vi.fn(); let r!: ReactTestRenderer;
   await act(async () => { r = create(createElement(I18nProvider, { language, children: createElement(SessionTimeline, { ...surface, sessions: [session('one'), session('two', start + 1, end)], onOpenSession }) })); }); mounted.push(r);
   const button = () => r.root.findByProps({ accessibilityLabel: language === 'de' ? 'Session ansehen: Session two' : 'Inspect session: Session two' });
-  const selector = () => r.root.findByType('SettingsSelect' as never);
+  const activeId = () => r.root.findAllByType('Pressable' as never).find(n => n.props.accessibilityState?.selected && String(n.props.accessibilityLabel).includes('Session '))?.props.accessibilityLabel;
   await act(async () => button().props.onHoverIn());
-  expect(selector().props.value).toBe('two'); expect(onOpenSession).not.toHaveBeenCalled();
+  expect(activeId()).toContain('Session two'); expect(onOpenSession).not.toHaveBeenCalled();
   expect(JSON.stringify(r.toJSON())).toContain('Named worktree');
-  await act(async () => button().props.onHoverOut()); expect(selector().props.value).toBe('one');
-  await act(async () => button().props.onFocus()); expect(selector().props.value).toBe('two');
+  await act(async () => button().props.onHoverOut()); expect(activeId()).toContain('Session two');
+  await act(async () => button().props.onFocus()); expect(activeId()).toContain('Session two');
   await act(async () => button().props.onBlur());
   await act(async () => button().props.onPress()); await act(async () => button().props.onHoverOut());
-  expect(selector().props.value).toBe('two'); expect(onOpenSession).not.toHaveBeenCalled();
+  expect(activeId()).toContain('Session two'); expect(onOpenSession).not.toHaveBeenCalled();
   await act(async () => r.root.findByProps({ accessibilityLabel: language === 'de' ? 'Auswerten: Session two' : 'Analyze Session two' }).props.onPress());
   expect(onOpenSession).toHaveBeenCalledExactlyOnceWith('two');
-  await act(async () => selector().props.onValueChange('one')); expect(selector().props.value).toBe('one');
+  await act(async () => r.root.findByProps({ accessibilityLabel: language === 'de' ? 'Vorherige Session' : 'Previous session', accessibilityRole: 'button' }).props.onPress()); expect(activeId()).toContain('Session one');
   expect(r.root.findAllByType('Text' as never).every(n => n.props.style.color)).toBe(true);
 });
 

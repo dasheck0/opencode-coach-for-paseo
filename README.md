@@ -7,7 +7,7 @@ A native Paseo plugin that automatically summarizes your historical OpenCode ses
 Requires Paseo **0.15.3+**. Plugins must already be enabled in Paseo settings. Plugins are trusted code with your daemon's filesystem permissions; review the source before installing.
 
 ```sh
-paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.7.1
+paseo plugin install git:dasheck0/opencode-coach-for-paseo --ref v0.7.2
 paseo plugin ls opencode-coach-for-paseo
 ```
 
@@ -119,8 +119,10 @@ Date windows use **message activity**, so a session started weeks ago is include
 
 A clickable breadcrumb above the page header tracks your drill-down path. Select any earlier step to restore its view, scroll position, Patterns tab and session-list page. The current step is plain highlighted text. Selecting a main section in the sidebar (or compact navigation) starts a new root and clears the previous branch. Only in-content drill-down links extend the path; sibling session details replace one another. The path belongs to the open Coach screen and also resets when the provider, source, project selection or period changes; it is not persisted across plugin reloads. Shared filters remain in place while navigating.
 
-The reusable `SessionTimeline` component accepts sessions, optional `from`/`to` bounds, a selected session ID and an `onOpenSession` callback. It has no data-fetching or pagination dependency. Hover, keyboard focus and click inspect a segment inline; clicking **Analyze** opens its report. Sessions on the current history page are grouped by workspace. Each workspace has exactly one continuous UTC track, including spans across midnight, and all workspace tracks use identical time bounds. Overlapping sessions share the same track; shorter spans are layered above longer ones, and every session remains available through its workspace session selector. Very short spans have a six-pixel minimum visible width. Activity spans include idle time, and the track covers the current history page, not every page at once.
+The reusable `SessionTimeline` component accepts sessions, optional `from`/`to` bounds, a selected session ID and an `onOpenSession` callback. It has no data-fetching or pagination dependency. Hover, keyboard focus and click inspect a segment inline; clicking **Analyze** opens its report. Sessions on the current history page are grouped by workspace. Each workspace has exactly one continuous UTC track, including spans across midnight, and all workspace tracks use identical time bounds. Overlapping sessions share the same track; shorter spans are layered above longer ones, and every session remains available through the small previous/next arrows beside its title. Very short spans have a six-pixel minimum visible width. Activity spans include idle time, and the track covers the current history page, not every page at once.
 
 Timeline pagination uses complete workspace groups: five per page by default, with saved choices of 5, 10 or 25. Numbered page buttons, first/previous/next/last navigation, ellipses for long ranges and an exact workspace range/total make the unit explicit. Only the final page may contain fewer workspace groups. Session totals are shown separately. A workspace and its matching sessions never split across pages. Counts come from the filtered metadata index; paging does not import session bodies or invoke a model.
 
 Each Timeline workspace is presented as its own card. A header badge shows its matching session count for the current period and filters. Workspace groups remain complete across pagination, so the badge is not a partial page count.
+
+Session inspectors no longer have a selection dropdown. Analyze expands the report directly below its action inside the workspace card, including loading and error states, without scrolling to the page top. The last inspected session remains selected when leaving its segment. Previous/next arrows beside the title keep overlapping sessions reachable. Evidence links can locate the appropriate workspace page through filtered metadata; sessions excluded by current history filters retain an explicitly labeled context card.

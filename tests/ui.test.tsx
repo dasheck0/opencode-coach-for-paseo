@@ -1,3 +1,4 @@
+import { analyze as analyzeSession } from '../server/analyze';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
@@ -218,7 +219,7 @@ it.each([[false, false], [true, true]])('resets breadcrumbs on section navigatio
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Browse individual sessions' }).props.onPress());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Analyze Fixture session' }).props.onPress());
-  await act(async () => r.root.findByProps({ label: 'Selected session' }).props.onValueChange('s2'));
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Inspect session: Second session' }).props.onPress());
   await act(async () => r.root.findByProps({ accessibilityLabel: 'Analyze Second session' }).props.onPress());
   expect(links()).toEqual(['Return to Dashboard', 'Return to Timeline']);
   for (const section of ['Output', 'Patterns', 'Anti-Patterns', 'Anti-Patterns']) {
@@ -246,8 +247,7 @@ it('shows one shared track per workspace with separate session selectors', async
   expect(one.findAllByProps({ accessibilityLabel: 'Session activity track' })).toHaveLength(1);
   expect(two.findAllByProps({ accessibilityLabel: 'Session activity track' })).toHaveLength(1);
   expect(one.findAllByType('Text' as never).filter(n => n.props.accessibilityLabel === 'Session count: 2')).toHaveLength(1);
-  const selectors = r.root.findAllByProps({ label: 'Selected session' });
-  expect(selectors.map(s => s.props.options.map((o: { value: string }) => o.value))).toEqual([['a', 'b'], ['c']]);
+  expect(r.root.findAllByProps({ label: 'Selected session' })).toHaveLength(0);
 });
 it('navigates numbered workspace pages, shows real totals and saves the page size', async () => {
   setup(); mocks.history.mockImplementation(async (q: { offset: number }) => ({ sessions: [summary], hasMore: q.offset < 10, total: 12, totalSessions: 90, offset: q.offset }));
@@ -263,4 +263,25 @@ it('navigates numbered workspace pages, shows real totals and saves the page siz
   expect(r.root.findByProps({ accessibilityLabel: 'Next' }).props.accessibilityState.disabled).toBe(true);
   await act(async () => r.root.findByProps({ label: 'Workspaces per page' }).props.onValueChange('10'));
   expect(mocks.saveView).toHaveBeenLastCalledWith({ ...mocks.view, historyPageSize: 10 }, 'r1');
+});
+
+it('opens session analysis below its action inside only the matching workspace card, with no selector row', async () => {
+  setup(); const a = { ...summary, id: 'a', workspaceId: 'w1', projectName: 'Project', workspaceName: 'One' };
+  const b = { ...summary, id: 'b', workspaceId: 'w2', directory: '/other', projectName: 'Project', workspaceName: 'Two' };
+  mocks.history.mockResolvedValue({ sessions: [a, b], hasMore: false, total: 2, totalSessions: 2, offset: 0 });
+  mocks.analyze.mockResolvedValue(analyzeSession({ summary: a, messages: [], compactions: 0, warnings: [] }));
+  const r = await render(Dashboard, props(false, false));
+  await act(async () => r.root.findByProps({ accessibilityLabel: 'Browse individual sessions' }).props.onPress());
+  await vi.waitFor(async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); }); expect(r.root.findAllByProps({ accessibilityLabel: 'Session activity track' })).toHaveLength(2); });
+  const one = () => r.root.findByProps({ title: 'Project · One' });
+  const content = r.root.findByProps({ accessibilityLabel: 'Coach content' });
+  await act(async () => content.props.onContentSizeChange(1000, 3000));
+  await act(async () => content.props.onScroll({ nativeEvent: { contentOffset: { y: 480 } } }));
+  await act(async () => one().findByProps({ accessibilityLabel: 'Analyze Fixture session' }).props.onPress());
+  await vi.waitFor(async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); }); expect(one().findAllByProps({ accessibilityLabel: 'Session analysis' })).toHaveLength(1); });
+  expect(r.root.findByProps({ title: 'Project · Two' }).findAllByProps({ accessibilityLabel: 'Session analysis' })).toHaveLength(0);
+  expect(r.root.findAllByProps({ label: 'Selected session' })).toHaveLength(0);
+  const analysis = one().findByProps({ accessibilityLabel: 'Session analysis' });
+  expect(analysis.parent?.findByProps({ accessibilityLabel: 'Analyze Fixture session' })).toBeTruthy();
+  expect(mocks.scrollTo).toHaveBeenLastCalledWith({ y: 480, animated: false });
 });

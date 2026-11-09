@@ -316,5 +316,10 @@
   "sessions in": "Sessions in",
   "workspaces on this page. Total matching sessions:": "Workspaces auf dieser Seite. Passende Sessions insgesamt:",
   "Session count": "Session-Anzahl",
-  "Session": "Session"
+  "Session": "Session",
+  "Previous session": "Vorherige Session",
+  "Next session": "Nächste Session",
+  "Session analysis": "Session-Analyse",
+  "Some sessions overlap. Use the arrows beside the title to reach every session.": "Einige Sessions überlappen sich. Über die Pfeile neben dem Titel erreichst du jede einzelne.",
+  "This session is outside the current history filters.": "Diese Session liegt außerhalb der aktuellen Verlaufsfilter."
 }

@@ -110,3 +110,10 @@ GitHub Actions runs the same typecheck and tests from a clean dependency install
 - Each workspace now uses its own bordered Panel with a session-count badge beside the project/workspace title. The shared wrapper and divider-only presentation were removed. Counts reflect the current period and filters; workspace pagination supplies complete groups.
 - Panel titles can shrink/wrap beside metadata so long workspace names do not push the count out of compact layouts. No session analysis/import or cache behavior changed.
 - Installed plugin reloaded and reported running. Native Paseo Timeline showed four distinct workspace headings with session-count metadata of 65, 19, 2 and 2 (88 sessions total).
+
+## v0.7.2: open analysis inside its workspace card (2026-11-09)
+
+- TypeScript and 77 tests passed locally. Added regression coverage that analysis belongs below the clicked action in only its matching workspace card, no selection dropdown exists, and scroll position remains at the clicked card. Existing hover/focus/click and sibling-session navigation tests now use segments and small previous/next arrows.
+- Loading/errors/reports render through an inline detail slot. Leaving a hovered/focused segment retains that inspected session so moving to Analyze does not silently change the target. No global report is rendered above the workspace cards.
+- The metadata-only history endpoint can locate a matching evidence session's workspace page. A service test verifies that a session in the final workspace group resolves to that page. Reports outside current history filters have an explicitly labeled context card rather than disappearing.
+- Plugin reload reported running. Native interaction was not repeated because the active Paseo surface was outside the Coach; placement and scroll behavior were verified by component interaction tests.

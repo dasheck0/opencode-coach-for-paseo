@@ -29,6 +29,8 @@ it('paginates complete workspace groups with exact totals across all adapter pag
     const human = await service.history('f', 's', { groupBy: 'workspace', origin: 'human', limit: 5, offset: 0 });
     expect(human.totalSessions).toBe(rows.filter(s => !s.parentId).length);
     expect(human.sessions.every(s => !s.parentId)).toBe(true);
+    const focused = await service.history('f', 's', { groupBy: 'workspace', limit: 5, offset: 0, focusSessionId: '11' });
+    expect(focused.offset).toBe(10); expect(focused.sessions.some(s => s.id === '11')).toBe(true);
     expect(adapter.load).not.toHaveBeenCalled();
   } finally { service.dispose(); }
 });

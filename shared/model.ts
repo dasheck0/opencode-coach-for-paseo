@@ -33,4 +33,4 @@ export const reportSchema = z.object({
 });
 export type Report = z.infer<typeof reportSchema>;
 export type Finding = z.infer<typeof findingSchema>;
-export interface HistoryQuery { groupBy?: 'session' | 'workspace'; from?: number; to?: number; directory?: string; limit: number; offset: number; projectIds?: string[]; origin?: 'human' | 'ai' | 'all' }
+export interface HistoryQuery { focusSessionId?: string; groupBy?: 'session' | 'workspace'; from?: number; to?: number; directory?: string; limit: number; offset: number; projectIds?: string[]; origin?: 'human' | 'ai' | 'all' }

@@ -81,7 +81,9 @@ export class CoachService {
     }
     const groups = query.groupBy === 'workspace' ? workspaceTimelines(matched) : undefined;
     const total = groups?.length ?? matched.length;
-    const pageOffset = Math.min(query.offset, Math.max(0, Math.ceil(total / query.limit) - 1) * query.limit);
+    const focus = query.focusSessionId ? (groups ? groups.findIndex(g => g.sessions.some(s => s.id === query.focusSessionId)) : matched.findIndex(s => s.id === query.focusSessionId)) : -1;
+    const requestedOffset = focus >= 0 ? Math.floor(focus / query.limit) * query.limit : query.offset;
+    const pageOffset = Math.min(requestedOffset, Math.max(0, Math.ceil(total / query.limit) - 1) * query.limit);
     const sessions = groups ? groups.slice(pageOffset, pageOffset + query.limit).flatMap(g => g.sessions) : matched.slice(pageOffset, pageOffset + query.limit);
     return { sessions, total, totalSessions: matched.length, offset: pageOffset, hasMore: pageOffset + query.limit < total };
   }
